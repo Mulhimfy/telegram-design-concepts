@@ -1,0 +1,71 @@
+name: iOS verify
+
+# Compiles and tests the native (Telegram-iOS) side of the glass avatar:
+#   1. the Swift interaction model replays the web prototype's golden trajectories,
+#   2. the Metal shader compiles for iOS,
+#   3. the Telegram-facing module typechecks for iOS against signature stubs of
+#      Display / MetalEngine / SwiftSignalKit / AsyncDisplayKit / UIKitRuntimeUtils,
+#   4. the patches apply in order on Telegram-iOS f1dd7a2 (0001 Glass Avatar, then 0002 Back Photo)
+#      and carry this module unchanged.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios-verify.yml'
+
+jobs:
+  verify:
+    runs-on: macos-15
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Physics — Swift twin replays the web prototype's golden trajectories
+        working-directory: ios/Standalone/Core
+        run: |
+          mkdir -p Sources/GlassCoinCore
+          cp ../../GlassCoinAvatar/Sources/GlassCoinPhysics.swift Sources/GlassCoinCore/
+          swift test 2>&1 | tail -60
+
+      - name: Metal — compile GlassCoin.metal for iOS
+        run: |
+          xcrun -sdk iphoneos metal -c ios/GlassCoinAvatar/Metal/GlassCoin.metal -o "$RUNNER_TEMP/GlassCoin.air"
+          xcrun -sdk iphoneos metallib "$RUNNER_TEMP/GlassCoin.air" -o "$RUNNER_TEMP/GlassCoin.metallib"
+          ls -la "$RUNNER_TEMP"/GlassCoin.*
+
+      - name: Swift — typecheck the Telegram-facing module for iOS
+        working-directory: ios/Standalone/TypeCheck
+        run: |
+          mkdir -p Sources/GlassCoinAvatar
+          cp ../../GlassCoinAvatar/Sources/*.swift Sources/GlassCoinAvatar/
+          ls -1 Sources/GlassCoinAvatar
+          SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
+          swift build --sdk "$SDK" --triple arm64-apple-ios15.0-simulator \
+            -Xswiftc -warnings-as-errors 2>&1 | grep -vE "^\[[0-9]+/[0-9]+\]" | tail -80
+
+      - name: Patches — apply in order on Telegram-iOS f1dd7a2
+        run: |
+          TG="$RUNNER_TEMP/Telegram-iOS"
+          git init -q "$TG"
+          git -C "$TG" remote add origin https://github.com/TelegramMessenger/Telegram-iOS.git
+          git -C "$TG" config core.sparseCheckout true
+          echo "/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/" > "$TG/.git/info/sparse-checkout"
+          git -C "$TG" fetch -q --depth 1 --filter=blob:none origin f1dd7a2dbd02cbbf513e75d5695d8d36d1cf5838
+          git -C "$TG" checkout -q FETCH_HEAD
+          for patch in 0001-glass-avatar 0002-back-photo; do
+            git -C "$TG" apply --check "$GITHUB_WORKSPACE/ios/patches/$patch.patch"
+            git -C "$TG" apply --whitespace=nowarn "$GITHUB_WORKSPACE/ios/patches/$patch.patch"
+            echo "$patch: applies"
+          done
+          # The patch carries ios/GlassCoinAvatar as it is here (the single source of truth).
+          diff -r "$TG/submodules/TelegramUI/Components/PeerInfo/GlassCoinAvatar" ios/GlassCoinAvatar
+          git -C "$TG" status --short

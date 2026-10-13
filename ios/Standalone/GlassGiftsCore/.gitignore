@@ -1,0 +1,4 @@
+# copied in by CI (single source of truth lives in ios/GlassGifts/Sources)
+Sources/
+.build/
+.swiftpm/

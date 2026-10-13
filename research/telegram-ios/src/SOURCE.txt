@@ -1,0 +1,2 @@
+f1dd7a2dbd02cbbf513e75d5695d8d36d1cf5838 (TelegramMessenger/Telegram-iOS master, 2026-10-07, app 13.0). Verbatim copies.
+Licence: GNU GPL v2 or later, as stated on telegram.org/apps (the Telegram-iOS repository itself has no LICENSE file).

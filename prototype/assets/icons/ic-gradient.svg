@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="30pt" height="30pt" viewBox="0 0 30 30">
+<defs>
+<filter id="filter-remove-color" x="0%" y="0%" width="100%" height="100%">
+<feColorMatrix color-interpolation-filters="sRGB" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0" />
+</filter>
+<image id="source-11" x="0" y="0" width="30" height="30" xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeCAYAAAA7MK6iAAAABmJLR0QA/wD/AP+gvaeTAAAARElEQVRIie3PsQ0AIAzEwI/E/uuCREOTGZwCe4GTK8nNQCvJnoLPFOwxBnuMwR5jsMcY7DEGe4zBHmOwxxj813E1jvcAJcAchK0NB2EAAAAASUVORK5CYII="/>
+<mask id="mask-0">
+<g filter="url(#filter-remove-color)">
+<use xlink:href="#source-11"/>
+</g>
+</mask>
+<clipPath id="clip-0">
+<rect x="0" y="0" width="30" height="30"/>
+</clipPath>
+<g id="source-13" clip-path="url(#clip-0)">
+<g mask="url(#mask-0)">
+<rect x="-6.6" y="-6.6" width="43.2" height="43.2" fill="rgb(100%, 100%, 100%)" fill-opacity="0.14"/>
+</g>
+</g>
+</defs>
+<use xlink:href="#source-13"/>
+</svg>

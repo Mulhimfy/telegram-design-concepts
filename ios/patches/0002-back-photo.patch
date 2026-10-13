@@ -1,0 +1,295 @@
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoHeaderNode.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoHeaderNode.swift
+index 465b804..cbce515 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoHeaderNode.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoHeaderNode.swift
+@@ -2890,11 +2890,24 @@ final class PeerInfoHeaderNode: ASDisplayNode {
+         self.glassLightNode.change(to: color, animated: animated)
+     }
+     
++    /// The back of the glass avatar (nil: none — the back is the photo itself). Animated, the avatar turns over by itself
++    /// to show it (GlassCoinAvatarNode.setBackPhoto).
++    func setGlassBackPhoto(_ image: UIImage?, animated: Bool) {
++        self.avatarListNode.avatarContainerNode.coinNode.setBackPhoto(image, animated: animated)
++    }
++    
+     /// The own glass avatar as chosen on this device (PeerInfoGlassAvatarStore).
+     private func restoreGlassAvatar() {
+         if let color = PeerInfoGlassAvatarStore.glassColor(context: self.context) {
+             self.setGlassColor(color, animated: false)
+         }
++        let _ = (PeerInfoGlassAvatarStore.backPhoto(context: self.context)
++        |> deliverOnMainQueue).startStandalone(next: { [weak self] image in
++            guard let self, let image else {
++                return
++            }
++            self.setGlassBackPhoto(image, animated: false)
++        })
+     }
+     
+     /// The navigation capsules: glass whose rims catch the light of the glass avatar.
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
+index d4c156a..8d30867 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreen.swift
+@@ -191,6 +191,8 @@ enum PeerInfoSettingsSection {
+     case stars
+     case ton
+     case wallet
++    /// Back Photo (GlassCoinAvatar): the picture on the back of the profile photo.
++    case glassBackPhoto
+     /// The glass avatar (GlassCoinAvatar): the colour of the glass.
+     case glassColor
+ }
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreenGlassBackPhoto.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreenGlassBackPhoto.swift
+new file mode 100644
+index 0000000..2eecab8
+--- /dev/null
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreenGlassBackPhoto.swift
+@@ -0,0 +1,213 @@
++import Foundation
++import UIKit
++import Display
++import SwiftSignalKit
++import TelegramCore
++import AccountContext
++import MediaEditor
++import MediaEditorScreen
++import CameraScreen
++import AvatarEditorScreen
++import Photos
++import GlassCoinAvatar
++
++/// Back Photo (GlassCoinAvatar): the picture on the back of the own profile photo, kept on this device until the
++/// profile has a field for it. Without one the back is the photo itself.
++/// TODO(server): a `back_photo` user profile field (synced, and shown to others), replacing this store.
++extension PeerInfoGlassAvatarStore {
++    /// Reads and writes of the back photo, in order.
++    private static let backPhotoQueue = Queue(name: "PeerInfoGlassAvatarStore.backPhoto")
++
++    private static func backPhotoPath(context: AccountContext) -> String {
++        return context.account.basePath + "/glass-avatar-back.jpg"
++    }
++
++    static func hasBackPhoto(context: AccountContext) -> Bool {
++        return FileManager.default.fileExists(atPath: backPhotoPath(context: context))
++    }
++
++    /// The stored back photo, decoded off the main thread.
++    static func backPhoto(context: AccountContext) -> Signal<UIImage?, NoError> {
++        let path = backPhotoPath(context: context)
++        return Signal { subscriber in
++            subscriber.putNext(UIImage(contentsOfFile: path).flatMap { glassCoinSquareImage($0) })
++            subscriber.putCompletion()
++            return EmptyDisposable
++        }
++        |> runOn(PeerInfoGlassAvatarStore.backPhotoQueue)
++    }
++
++    /// Stores (nil: removes) the back photo, then calls `completion` on the main queue.
++    static func setBackPhoto(_ image: UIImage?, context: AccountContext, completion: @escaping () -> Void) {
++        let path = backPhotoPath(context: context)
++        PeerInfoGlassAvatarStore.backPhotoQueue.async {
++            if let data = image.flatMap({ glassCoinSquareImage($0) })?.jpegData(compressionQuality: 0.85) {
++                let _ = try? data.write(to: URL(fileURLWithPath: path), options: [.atomic])
++            } else {
++                let _ = try? FileManager.default.removeItem(atPath: path)
++            }
++            Queue.mainQueue().async {
++                completion()
++            }
++        }
++    }
++}
++
++extension PeerInfoScreenImpl {
++    /// "Add Back Photo" / "Change Back Photo": the avatar's own photo picker and editor (round crop, as in
++    /// `openAvatarForEditing`); the photo is stored on this device and the avatar turns over by itself to show it. A camera
++    /// or library video gives its cover, the emoji avatar maker its picture. "None" (the prototype's first tile: the back
++    /// is the photo itself again) is the picker's remove action, offered while a back photo is set.
++    func openGlassBackPhotoSetup() {
++        guard let data = self.controllerNode.data, let peer = data.peer else {
++            return
++        }
++        self.view.endEditing(true)
++
++        let hasBackPhoto = PeerInfoGlassAvatarStore.hasBackPhoto(context: self.context)
++        let keyboardInputData = Promise<AvatarKeyboardInputData>()
++        keyboardInputData.set(AvatarEditorScreen.inputData(context: self.context, isGroup: false))
++        let parentController = (self.context.sharedContext.mainWindow?.viewController as? NavigationController)?.topViewController as? ViewController
++        var dismissImpl: (() -> Void)?
++        let (mainController, pickerHolder) = self.context.sharedContext.makeAvatarMediaPickerScreen(context: self.context, peerType: PeerType.getType(for: peer), getSourceRect: { return nil }, canDelete: hasBackPhoto, performDelete: { [weak self] in
++            self?.applyGlassBackPhoto(nil)
++        }, completion: { [weak self, parentController] result, transitionView, transitionRect, transitionImage, fromCamera, transitionOut, cancelled in
++            guard let self else {
++                return
++            }
++            self.avatarPickerHolder = nil
++
++            let subject: Signal<MediaEditorScreenImpl.Subject?, NoError>
++            if let asset = result as? PHAsset {
++                subject = .single(.asset(asset))
++            } else if let image = result as? UIImage {
++                subject = .single(.image(image: image, dimensions: PixelDimensions(image.size), additionalImage: nil, additionalImagePosition: .bottomRight, fromCamera: false))
++            } else if let result = result as? Signal<CameraScreenImpl.Result, NoError> {
++                subject = result
++                |> map { value -> MediaEditorScreenImpl.Subject? in
++                    switch value {
++                    case .pendingImage:
++                        return nil
++                    case let .image(image):
++                        return .image(image: image.image, dimensions: PixelDimensions(image.image.size), additionalImage: nil, additionalImagePosition: .topLeft, fromCamera: false)
++                    case let .video(video):
++                        return .video(videoPath: video.videoPath, thumbnail: video.coverImage, mirror: video.mirror, additionalVideoPath: nil, additionalThumbnail: nil, dimensions: video.dimensions, duration: video.duration, videoPositionChanges: [], additionalVideoPosition: .topLeft, fromCamera: false)
++                    default:
++                        return nil
++                    }
++                }
++            } else {
++                // The emoji avatar maker: its picture goes on the back (an animated one as its still).
++                let controller = AvatarEditorScreen(context: self.context, inputData: keyboardInputData.get(), peerType: .user, markup: nil)
++                controller.imageCompletion = { [weak self] image, commit in
++                    self?.applyGlassBackPhoto(image)
++                    commit()
++                }
++                controller.videoCompletion = { [weak self] image, _, _, _, commit in
++                    self?.applyGlassBackPhoto(image)
++                    commit()
++                }
++                parentController?.push(controller)
++                return
++            }
++
++            let editorController = MediaEditorScreenImpl(
++                context: self.context,
++                mode: .avatarEditor(clipStyle: .round),
++                subject: subject,
++                transitionIn: fromCamera ? .camera : transitionView.flatMap({ .gallery(
++                    MediaEditorScreenImpl.TransitionIn.GalleryTransitionIn(
++                        sourceView: $0,
++                        sourceRect: transitionRect,
++                        sourceImage: transitionImage
++                    )
++                ) }),
++                transitionOut: { finished, isNew in
++                    if !finished, let transitionView {
++                        return MediaEditorScreenImpl.TransitionOut(
++                            destinationView: transitionView,
++                            destinationRect: transitionView.bounds,
++                            destinationCornerRadius: 0.0
++                        )
++                    }
++                    return nil
++                },
++                completion: { [weak self] results, commit in
++                    guard let result = results.first else {
++                        return
++                    }
++                    switch result.media {
++                    case let .image(image, _):
++                        self?.applyGlassBackPhoto(image)
++                        commit({})
++                    case let .video(_, coverImage, _, _, _):
++                        // The back is a still: the video's cover.
++                        if let coverImage {
++                            self?.applyGlassBackPhoto(coverImage)
++                        }
++                        commit({})
++                    default:
++                        break
++                    }
++                    dismissImpl?()
++                } as ([MediaEditorScreenImpl.Result], @escaping (@escaping () -> Void) -> Void) -> Void
++            )
++            editorController.cancelled = { _ in
++                cancelled()
++            }
++            if self.navigationController != nil {
++                self.push(editorController)
++            } else {
++                self.parentController?.pushViewController(editorController)
++            }
++        }, dismissed: {
++        })
++        self.avatarPickerHolder = pickerHolder
++        if let mainController {
++            dismissImpl = { [weak self, weak mainController] in
++                if let mainController, let navigationController = mainController.navigationController {
++                    var viewControllers = navigationController.viewControllers
++                    viewControllers = viewControllers.filter { c in
++                        return !(c is CameraScreen) && c !== mainController
++                    }
++                    navigationController.setViewControllers(viewControllers, animated: false)
++                }
++                if let self, let navigationController = self.parentController, let mainController {
++                    var viewControllers = navigationController.viewControllers
++                    viewControllers = viewControllers.filter { c in
++                        return !(c is CameraScreen) && c !== mainController
++                    }
++                    navigationController.setViewControllers(viewControllers, animated: false)
++                }
++            }
++            if mainController is ActionSheetController {
++                if let navigationController = self.navigationController, let topController = navigationController.topViewController as? ViewController {
++                    topController.present(mainController, in: .window(.root))
++                } else {
++                    self.present(mainController, in: .window(.root))
++                }
++            } else {
++                mainController.navigationPresentation = .flatModal
++                mainController.supportedOrientations = ViewControllerSupportedOrientations(regularSize: .all, compactSize: .portrait)
++                if self.navigationController != nil {
++                    self.push(mainController)
++                } else {
++                    self.parentController?.pushViewController(mainController)
++                }
++            }
++        }
++    }
++
++    private func applyGlassBackPhoto(_ image: UIImage?) {
++        // As the picker leaves, the avatar turns over by itself to its new back (none: back to the photo itself); a side
++        // only changes while it faces away (GlassCoinAvatarNode.setBackPhoto).
++        self.controllerNode.headerNode.setGlassBackPhoto(image, animated: true)
++        PeerInfoGlassAvatarStore.setBackPhoto(image, context: self.context, completion: { [weak self] in
++            // The settings row now reads "Change Back Photo" (or "Add Back Photo" again).
++            guard let self, let (layout, navigationHeight) = self.controllerNode.validLayout else {
++                return
++            }
++            self.controllerNode.containerLayoutUpdated(layout: layout, navigationHeight: navigationHeight, transition: .immediate)
++        })
++    }
++}
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreenSettingsActions.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreenSettingsActions.swift
+index b25edf6..71516b6 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreenSettingsActions.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreenSettingsActions.swift
+@@ -307,6 +307,8 @@ extension PeerInfoScreenNode {
+                 return
+             }
+             push(self.context.sharedContext.makeWalletScreen(context: self.context))
++        case .glassBackPhoto:
++            self.controller?.openGlassBackPhotoSetup()
+         case .glassColor:
+             self.controller?.openGlassColorSetup()
+         }
+diff --git a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoSettingsItems.swift b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoSettingsItems.swift
+index e5721a7..c9c2677 100644
+--- a/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoSettingsItems.swift
++++ b/submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoSettingsItems.swift
+@@ -75,6 +75,16 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
+         interaction.openSettings(.avatar)
+     }))
+     
++    // Back Photo (GlassCoinAvatar): the picture on the back of the profile photo — the photo itself until one is added.
++    // TODO(localization): Settings.AddBackPhoto / Settings.ChangeBackPhoto.
++    // TODO(design): its own icon (prototype/assets/icons/set-backphoto.svg) and the NEW badge.
++    if let peer = data.peer, !peer.profileImageRepresentations.isEmpty {
++        let backPhotoTitle = PeerInfoGlassAvatarStore.hasBackPhoto(context: context) ? "Change Back Photo" : "Add Back Photo"
++        items[.edit]!.append(PeerInfoScreenActionItem(id: 4, text: backPhotoTitle, icon: UIImage(bundleImageName: "Settings/SetAvatar"), action: {
++            interaction.openSettings(.glassBackPhoto)
++        }))
++    }
++    
+     // The glass avatar (GlassCoinAvatar): the colour of its glass.
+     // TODO(localization): Settings.ChangeGlassColor.
+     // TODO(design): its own icon (prototype/assets/icons/set-glass.svg) and the NEW badge.

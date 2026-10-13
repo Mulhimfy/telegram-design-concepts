@@ -1,0 +1,22 @@
+# Phone test build (append to /etc/caddy/Caddyfile, replace <path> with the content of
+# /root/.config/tgdesign-test-path, then `systemctl reload caddy`).
+# Only the unguessable prefix is served, nothing is indexed, and the reload stream (__live)
+# is never compressed so it is not buffered.
+tgdesign.62-238-117-250.sslip.io {
+	@compress not path */__live
+	encode @compress zstd gzip
+	redir /<path> /<path>/ 308
+	handle_path /<path>/* {
+		reverse_proxy 127.0.0.1:8738 {
+			flush_interval -1
+		}
+	}
+	handle {
+		respond 404
+	}
+	header {
+		X-Robots-Tag "noindex, nofollow, noarchive"
+		Referrer-Policy no-referrer
+		-Server
+	}
+}

@@ -1,0 +1,53 @@
+name: iOS Depth Swipe
+
+# Compiles and tests the native (Telegram-iOS) side of Depth Swipe:
+#   1. the Swift rig, its springs and the row-side driving replay the web prototype's golden frames
+#      (tools/golden-depth.mjs records them from prototype/src/chats/depth.js);
+#   2. the Telegram-facing module typechecks for the iOS Simulator with -warnings-as-errors against
+#      signature stubs of Display / AsyncDisplayKit, and the ChatListItemNode hook functions compile
+#      against it;
+#   3. ios/patches/0004-depth-swipe.patch applies to Telegram-iOS f1dd7a2, adds exactly
+#      ios/DepthSwipe, and its hook functions are the ones step 2 compiled.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'ios/DepthSwipe/**'
+      - 'ios/Standalone/DepthSwipe*/**'
+      - 'ios/patches/0004-depth-swipe.patch'
+      - 'tools/depth-swipe-patch.sh'
+      - '.github/workflows/ios-depth-swipe.yml'
+
+jobs:
+  verify:
+    runs-on: macos-15
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Rig — the Swift twin replays the web prototype's golden frames
+        working-directory: ios/Standalone/DepthSwipeCore
+        run: |
+          mkdir -p Sources/DepthSwipeCore
+          cp ../../DepthSwipe/Sources/DepthSwipeSpring.swift ../../DepthSwipe/Sources/DepthSwipeRig.swift ../../DepthSwipe/Sources/DepthSwipeTracker.swift Sources/DepthSwipeCore/
+          swift test -Xswiftc -warnings-as-errors 2>&1 | grep -vE "^\[[0-9]+/[0-9]+\]" | tail -80
+
+      - name: Swift — typecheck the Telegram-facing module and the hooks for iOS
+        working-directory: ios/Standalone/DepthSwipeTypeCheck
+        run: |
+          mkdir -p Sources/DepthSwipe
+          cp ../../DepthSwipe/Sources/*.swift Sources/DepthSwipe/
+          SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
+          swift build --sdk "$SDK" --triple arm64-apple-ios15.0-simulator \
+            -Xswiftc -warnings-as-errors 2>&1 | grep -vE "^\[[0-9]+/[0-9]+\]" | tail -80
+
+      - name: Patch — applies to Telegram-iOS f1dd7a2, carries ios/DepthSwipe and the compiled hooks
+        run: tools/depth-swipe-patch.sh --check

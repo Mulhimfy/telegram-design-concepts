@@ -1,0 +1,600 @@
+/* Telegram iOS 13.0 (iOS 26 "glass" design) — web replica styles.
+   Every metric is in points (1 CSS px = 1 pt); values come from
+   research/telegram-ios/tokens.json and carry the source reference. */
+
+@font-face { font-family: "TG SF Text"; src: local("SF Pro Text"), url("../../assets/fonts/SF-Pro-Text-Regular.otf"); font-weight: 400; }
+@font-face { font-family: "TG SF Text"; src: local("SF Pro Text Medium"), url("../../assets/fonts/SF-Pro-Text-Medium.otf"); font-weight: 500; }
+@font-face { font-family: "TG SF Text"; src: local("SF Pro Text Semibold"), url("../../assets/fonts/SF-Pro-Text-Semibold.otf"); font-weight: 600; }
+@font-face { font-family: "TG SF Text"; src: local("SF Pro Text Bold"), url("../../assets/fonts/SF-Pro-Text-Bold.otf"); font-weight: 700; }
+@font-face { font-family: "TG SF Display"; src: local("SF Pro Display"), url("../../assets/fonts/SF-Pro-Display-Regular.otf"); font-weight: 400; }
+@font-face { font-family: "TG SF Display"; src: local("SF Pro Display Medium"), url("../../assets/fonts/SF-Pro-Display-Medium.otf"); font-weight: 500; }
+@font-face { font-family: "TG SF Display"; src: local("SF Pro Display Semibold"), url("../../assets/fonts/SF-Pro-Display-Semibold.otf"); font-weight: 600; }
+@font-face { font-family: "TG SF Display"; src: local("SF Pro Display Bold"), url("../../assets/fonts/SF-Pro-Display-Bold.otf"); font-weight: 700; }
+@font-face { font-family: "TG SF Rounded"; src: local("SF Pro Rounded"), url("../../assets/fonts/SF-Pro-Rounded-Semibold.otf"); font-weight: 600; }
+@font-face { font-family: "TG SF Rounded"; src: local("SF Pro Rounded Bold"), url("../../assets/fonts/SF-Pro-Rounded-Bold.otf"); font-weight: 700; }
+
+:root {
+  /* system font first: on iPhone this is SF with native optical sizing + tracking */
+  --font-text: -apple-system, "TG SF Text", system-ui, sans-serif;
+  --font-display: -apple-system, "TG SF Display", "TG SF Text", system-ui, sans-serif;
+  --font-rounded: ui-rounded, "TG SF Rounded", -apple-system, system-ui, sans-serif;
+
+  /* DefaultDarkPresentationTheme.swift:412-477 (Night, blue accent variant) */
+  --tg-blocks-bg: #000000;
+  --tg-item-bg: #1c1c1d;
+  --tg-text: #ffffff;
+  --tg-text-secondary: #98989e;
+  --tg-accent: #3e88f7;
+  --tg-destructive: #eb5545;
+  --tg-separator: rgba(84, 84, 88, 0.55);
+  --tg-disclosure: rgba(255, 255, 255, 0.28);
+  --tg-badge: #ff453a;
+  --tg-item-highlight: #313135;
+  --tg-list-bg: #000000;
+  --tg-badge-muted: #666666;
+  /* theme.chatList, Night (blue accent) — research/telegram-ios/chat-list-swipe.md §4 */
+  --tg-chat-date: #8d8e93;
+  --tg-section-header: #8d8e93;
+  --tg-chat-card: #121212;
+  --tg-chat-pinned-bg: #1c1c1d;
+  --tg-chat-pinned-card: #2b2b2c;
+  --tg-chat-sep: rgba(84, 84, 88, 0.55);
+  --tg-chat-badge: #3e88f7;
+  --tg-chat-badge-text: #ffffff;
+  --tg-chat-badge-muted: #666666;
+  --tg-chat-badge-muted-text: #000000;
+  --tg-chat-pin: #767677;
+  --tg-chat-mute: #8d8e93;
+  --tg-chat-check: #3e88f7;
+  --tg-search-fill: rgba(255, 255, 255, 0.10);
+  --tg-search-text: #8f8f8f;
+  --tg-fade: rgba(0, 0, 0, 0.85);
+  --tg-sheet: rgba(28, 28, 30, 0.84);
+  --tg-sheet-solid: #1c1c1e;
+}
+
+:root[data-theme="light"] {
+  /* DefaultDayPresentationTheme.swift:472-510 */
+  --tg-blocks-bg: #efeff4;
+  --tg-item-bg: #ffffff;
+  --tg-text: #000000;
+  --tg-text-secondary: #8e8e93;
+  --tg-accent: #0088ff;
+  --tg-destructive: #ff3b30;
+  --tg-separator: #c8c7cc;
+  --tg-disclosure: #bab9be;
+  --tg-item-highlight: #e5e5ea;
+  --tg-list-bg: #ffffff;
+  --tg-badge-muted: #b6b6bb;
+  /* theme.chatList, Day */
+  --tg-chat-date: #8e8e93;
+  --tg-section-header: #6d6d72;
+  --tg-chat-card: #e5e5ea;
+  --tg-chat-pinned-bg: #f7f7f7;
+  --tg-chat-pinned-card: #e5e5ea;
+  --tg-chat-sep: #c8c7cc;
+  --tg-chat-badge: #0088ff;
+  --tg-chat-badge-text: #ffffff;
+  --tg-chat-badge-muted: #b6b6bb;
+  --tg-chat-badge-muted-text: #ffffff;
+  --tg-chat-pin: #b6b6bb;
+  --tg-chat-mute: #a7a7ad;
+  --tg-chat-check: #0088ff;
+  --tg-search-fill: rgba(0, 0, 0, 0.06);
+  --tg-search-text: #8e8e93;
+  --tg-fade: rgba(255, 255, 255, 0.85);
+  --tg-sheet: rgba(250, 250, 252, 0.86);
+  --tg-sheet-solid: #f7f7f9;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+  touch-action: none;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+/* ---------------------------------------------------------------- stage / device */
+
+#stage {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--stage-bg, #000);
+}
+
+.device {
+  position: relative;
+  flex: none;
+  transform-origin: 50% 50%;
+}
+
+.device-frame {
+  position: absolute;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.screen {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: hidden;
+  background: var(--tg-blocks-bg);
+  font-family: var(--font-text);
+  color: var(--tg-text);
+  isolation: isolate;
+}
+
+.abs { position: absolute; }
+
+/* ---------------------------------------------------------------- typography */
+
+.t17 { font-family: var(--font-text); font-size: 17px; letter-spacing: -0.43px; line-height: 22px; }
+.t15 { font-family: var(--font-text); font-size: 15px; letter-spacing: -0.23px; line-height: 20px; }
+.t13 { font-family: var(--font-text); font-size: 13px; letter-spacing: -0.08px; line-height: 18px; }
+.t12 { font-family: var(--font-text); font-size: 12px; letter-spacing: 0px; line-height: 16px; }
+.t11 { font-family: var(--font-text); font-size: 11px; letter-spacing: 0.06px; line-height: 13px; }
+.t10 { font-family: var(--font-text); font-size: 10px; letter-spacing: 0.12px; line-height: 12px; }
+.t28 { font-family: var(--font-display); font-size: 28px; letter-spacing: 0.38px; line-height: 34px; }
+
+.w400 { font-weight: 400; }
+.w500 { font-weight: 500; }
+.w600 { font-weight: 600; }
+.w700 { font-weight: 700; }
+
+/* ---------------------------------------------------------------- icons */
+
+.mask-icon {
+  display: block;
+  background-color: currentColor;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+/* PresentationResourcesSettings.renderSettingsIcon: 30×30, r = 8, gradient
+   bottom-right → top-left, plusLighter gradient sheen, overlay backdrop, white glyph */
+.settings-icon {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  overflow: hidden;
+  isolation: isolate;
+  background: linear-gradient(315deg, var(--c0), var(--c1, var(--c0)));
+}
+.settings-icon .sheen {
+  position: absolute; inset: 0;
+  background: url("../assets/icons/ic-gradient.svg") center / 30px 30px no-repeat;
+  mix-blend-mode: plus-lighter;
+}
+.settings-icon .backdrop {
+  position: absolute; inset: 0;
+  background: url("../assets/icons/ic-backdrop@3x.png") center / 30px 30px no-repeat;
+  mix-blend-mode: overlay;
+}
+.settings-icon .glyph {
+  position: absolute; inset: 0;
+  color: #fff;
+}
+
+/* ---------------------------------------------------------------- glass (iOS 26 UIGlassEffect, approximated) */
+
+.glass {
+  position: absolute;
+  border-radius: 999px;
+  isolation: isolate;
+  overflow: hidden;
+  -webkit-backdrop-filter: blur(var(--glass-blur, 2px)) saturate(1.5);
+  backdrop-filter: blur(var(--glass-blur, 2px)) saturate(1.5);
+  background: var(--glass-tint, rgba(255, 255, 255, 0.025));
+  box-shadow:
+    0 0 30px rgba(0, 0, 0, 0.045),
+    0 0 20px rgba(0, 0, 0, 0.01);
+}
+.glass::before {
+  /* 0.8pt rim, brighter on the top-left and bottom-right (LegacyGlassView foreground) */
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 0.9px;
+  background:
+    linear-gradient(135deg,
+      rgba(255, 255, 255, var(--rim-hi, 0.55)) 0%,
+      rgba(255, 255, 255, var(--rim-lo, 0.10)) 30%,
+      rgba(255, 255, 255, var(--rim-lo, 0.10)) 70%,
+      rgba(255, 255, 255, var(--rim-hi2, 0.38)) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  pointer-events: none;
+}
+.glass::after {
+  /* faint inner sheen: glass is brighter toward its top */
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255, 255, 255, var(--sheen, 0.06)), rgba(255, 255, 255, 0) 60%);
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------- list */
+
+.section {
+  position: absolute;
+  background: var(--tg-item-bg);
+  border-radius: 26px;
+  overflow: hidden;
+}
+
+.row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 52px;
+}
+.row .title { position: absolute; top: 15px; white-space: nowrap; }
+.row .value { position: absolute; top: 15px; right: 34px; color: var(--tg-text-secondary); white-space: nowrap; }
+.row .arrow { position: absolute; right: 16px; top: 18px; width: 9px; height: 16px; color: var(--tg-disclosure); }
+.row .sep { position: absolute; left: 61px; right: 16px; bottom: 0; height: 0.333px; background: var(--tg-separator); }
+.row.accent .title { color: var(--tg-accent); }
+.row .highlight { position: absolute; inset: 0; background: var(--tg-item-highlight); opacity: 0; }
+
+/* The letters catching the light the glass throws as it turns (ui/turn-light.js): the same
+   text over itself, filled with a gradient clipped to the glyphs. */
+.turn-glow {
+  position: absolute;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  text-align: inherit;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  will-change: opacity;
+}
+
+.turn-shine {
+  position: absolute;
+  inset: 0;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- sheets (iOS 26 floating glass sheet) */
+
+.sheet-dim { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.36); opacity: 0; z-index: 70; }
+.sheet {
+  position: absolute;
+  z-index: 71;
+  border-radius: 38px;
+  overflow: hidden;
+  background: var(--tg-sheet);
+  -webkit-backdrop-filter: blur(28px) saturate(1.6);
+  backdrop-filter: blur(28px) saturate(1.6);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.32);
+  will-change: transform;
+}
+.sheet::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 0.8px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.06) 40%, rgba(255, 255, 255, 0.04));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  pointer-events: none;
+}
+.sheet-title { position: absolute; left: 64px; right: 64px; top: 20px; text-align: center; color: var(--tg-text);
+  font-family: var(--font-text); font-size: 17px; font-weight: 600; line-height: 22px; letter-spacing: -0.4px; }
+.sheet-subtitle { position: absolute; left: 64px; right: 64px; top: 44px; text-align: center; color: var(--tg-text-secondary);
+  font-family: var(--font-text); font-size: 13px; line-height: 17px; letter-spacing: -0.08px; }
+.sheet .glass { --glass-tint: rgba(255, 255, 255, 0.07); }
+:root[data-theme="light"] .sheet .glass { --glass-tint: rgba(0, 0, 0, 0.05); }
+
+.swatch { position: absolute; border-radius: 50%; }
+.swatch .ring { position: absolute; inset: -5px; border-radius: 50%; border: 2.5px solid var(--swatch-ring, #fff); opacity: 0; }
+.swatch .bead { position: absolute; inset: 0; border-radius: 50%; }
+.swatch-label { position: absolute; text-align: center; color: var(--tg-text-secondary); font-family: var(--font-text);
+  font-size: 11px; line-height: 13px; white-space: nowrap; }
+
+.pick { position: absolute; overflow: hidden; background: #222; }
+.pick img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pick.none { background: rgba(255, 255, 255, 0.07); color: var(--tg-text-secondary); }
+:root[data-theme="light"] .pick.none { background: rgba(0, 0, 0, 0.05); }
+.pick .none-icon { position: absolute; left: 50%; top: 42%; width: 40px; height: 40px; transform: translate(-50%, -50%); }
+.pick .none-label { position: absolute; left: 0; right: 0; top: 66%; text-align: center; font-family: var(--font-text);
+  font-size: 15px; font-weight: 500; }
+.pick .check { position: absolute; right: 6px; top: 6px; width: 24px; height: 24px; border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.9); background: rgba(0, 0, 0, 0.12); }
+.pick .check.on { background: var(--tg-accent); }
+.pick .check.on::after { content: ""; position: absolute; left: 7.5px; top: 4px; width: 5px; height: 10px;
+  border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+
+.badge {
+  position: absolute;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--tg-badge);
+  color: #fff;
+  font-family: var(--font-text);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 20px;
+  text-align: center;
+  padding: 0 6px;
+  letter-spacing: -0.2px;
+}
+
+.new-badge {
+  display: inline-block;
+  height: 17px;
+  padding: 0 5px;
+  border-radius: 5px;
+  background: #3e88f7;
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 17px;
+  vertical-align: 2px;
+  margin-left: 9px;
+  letter-spacing: 0.2px;
+}
+
+/* ---------------------------------------------------------------- tab bar */
+
+.tabbar .item {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+.tabbar .item .label { margin-top: 1px; font-size: 10px; font-weight: 600; letter-spacing: 0.1px; line-height: 12px; }
+.tabbar .item.selected { color: var(--tg-accent); }
+/* iOS 26 glass tab bar: dark glass at night, light glass by day (GBC .panel) */
+.tabbar { --glass-tint: rgba(28, 28, 30, 0.72); --rim-hi: 0.28; --rim-lo: 0.08; --rim-hi2: 0.2; }
+.tab-pill { background: rgba(255, 255, 255, 0.09); }
+:root[data-theme="light"] .tabbar { --glass-tint: rgba(250, 250, 252, 0.78); --rim-hi: 0.9; --rim-lo: 0.35; --rim-hi2: 0.6; color: #000; }
+:root[data-theme="light"] .tab-pill { background: rgba(0, 0, 0, 0.06); }
+:root[data-theme="light"] .tabbar .item:not(.selected) { color: #000; }
+
+/* ---------------------------------------------------------------- touch indicator (demo videos) */
+
+.touch-indicator {
+  position: absolute;
+  width: 38px;
+  height: 38px;
+  margin: -19px 0 0 -19px;
+  border-radius: 50%;
+  background: rgba(64, 64, 72, 0.32);
+  border: 1.6px solid rgba(255, 255, 255, 0.82);
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+  z-index: 100;
+  opacity: 0;
+}
+
+/* Video recording: backdrop-filter is recomputed every frame by the software compositor;
+   over these static backgrounds the tint alone is visually identical. */
+body.recording .sheet { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--tg-sheet-solid); }
+body.recording .glass {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* ---------------------------------------------------------------- chats tab (src/chats) */
+/* research/telegram-ios/chat-list-swipe.md: row §3, header §5, colours §4 */
+
+.chats-page { position: absolute; z-index: 26; background: var(--tg-list-bg); overflow: hidden; }
+.chats-fade { position: absolute; z-index: 5; background: var(--tg-fade); pointer-events: none; }
+.chats-title { position: absolute; z-index: 6; display: flex; align-items: center; justify-content: center; color: var(--tg-text); pointer-events: none; }
+.chats-edit { z-index: 6; display: flex; align-items: center; padding: 0 12px; color: var(--tg-text);
+  font-family: var(--font-text); font-size: 17px; font-weight: 500; letter-spacing: -0.39px; }
+.chats-buttons { z-index: 6; color: var(--tg-text); }
+.chats-button { position: absolute; top: 0; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; }
+.chats-search-node { position: absolute; z-index: 6; pointer-events: none; }
+.chats-search { position: absolute; background: var(--tg-search-fill); overflow: hidden; }
+.chats-search-text { position: absolute; left: 0; right: 0; bottom: 10px; height: 24px; display: flex; align-items: center; justify-content: center; gap: 4px;
+  color: var(--tg-search-text); font-family: var(--font-text); font-size: 17px; letter-spacing: -0.39px; }
+.chats-search-text span { position: relative; top: 1px; }
+
+.chat-row { position: absolute; }
+.chat-bg { position: absolute; pointer-events: none; }
+.chat-row.pinned .chat-bg { background: var(--tg-chat-pinned-bg); }
+.chat-card { position: absolute; background: var(--tg-chat-card); pointer-events: none; }
+.chat-row.pinned .chat-card { background: var(--tg-chat-pinned-card); }
+.chat-content { position: absolute; }
+.chat-avatar { position: absolute; }
+.avatar-pic { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.avatar-initials { color: #fff; font-family: var(--font-rounded); font-weight: 700; font-size: 26px; }
+.chat-title { position: absolute; height: 21px; display: flex; align-items: center; white-space: nowrap; color: var(--tg-text);
+  font-family: var(--font-text); font-size: 16px; font-weight: 600; letter-spacing: -0.312px; line-height: 21px; }
+.chat-title-text { position: relative; }
+.chat-icon { display: inline-flex; flex: none; }
+.chat-icon.verified { margin-left: 3px; }
+.chat-icon.muted { margin-left: -2px; color: var(--tg-chat-mute); }
+.chat-meta { position: absolute; display: flex; align-items: center; height: 18px; color: var(--tg-chat-date);
+  font-family: var(--font-text); font-size: 14px; letter-spacing: -0.15px; line-height: 18px; }
+.chat-check { display: inline-flex; width: 24px; height: 24px; color: var(--tg-chat-check); }
+.chat-text { position: absolute; color: var(--tg-chat-date);
+  font-family: var(--font-text); font-size: 15px; letter-spacing: -0.234px; line-height: 20px; }
+.chat-flow { position: absolute; left: 0; top: 0; width: 100%; visibility: hidden; }
+.chat-word { white-space: pre; }
+.chat-line { height: 20px; white-space: nowrap; overflow: visible; }
+.chat-line.author { color: var(--tg-text); }
+.chat-line.accent { color: var(--tg-accent); }
+.chat-badge { position: absolute; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--tg-chat-badge);
+  color: var(--tg-chat-badge-text); text-align: center; font-family: var(--font-text); font-size: 12px; font-weight: 600; line-height: 20px;
+  font-variant-numeric: tabular-nums; }
+.chat-badge.muted { background: var(--tg-chat-badge-muted); color: var(--tg-chat-badge-muted-text); }
+.chat-pin { position: absolute; width: 20px; height: 20px; color: var(--tg-chat-pin); }
+.chat-sep { position: absolute; left: 86px; right: 16px; bottom: 0; height: 1px; background: var(--tg-chat-sep); transform: scaleY(0.5); transform-origin: 0 100%; }
+.chat-sep.full { left: 0; right: 0; }
+.reveal-title { font-family: var(--font-text); font-size: 11px; line-height: 13px; letter-spacing: 0.064px; }
+.depth-title span { font: inherit; }
+
+.undo-toast { display: flex; align-items: center; gap: 10px; padding: 0 14px 0 10px; color: #fff; --glass-tint: rgba(30, 30, 32, 0.86); --glass-blur: 12px;
+  font-family: var(--font-text); }
+.undo-icon { width: 30px; height: 30px; flex: none; }
+.undo-text { flex: 1; font-size: 15px; letter-spacing: -0.24px; }
+.undo-button { color: #64b5ff; font-size: 16px; font-weight: 600; letter-spacing: -0.3px; }
+.undo-ring { position: relative; width: 24px; height: 24px; flex: none; color: #fff; }
+.undo-ring span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; }
+
+/* ---------------------------------------------------------------- pushed pages (src/settings/nav.js, subpages.js) */
+
+.nav-dim { position: absolute; z-index: 34; background: #000; pointer-events: none; }
+/* NavigationTransitionCoordinator: a 16 pt strip (black @0.5, blurred) under the moving page's corners */
+.nav-shadow { position: absolute; z-index: 33; pointer-events: none; background: linear-gradient(270deg, rgba(0,0,0,0.5), rgba(0,0,0,0)); filter: blur(8px); }
+.sub-page { position: absolute; z-index: 35; background: var(--tg-blocks-bg); overflow: hidden; will-change: transform; }
+.sub-back { z-index: 3; display: flex; align-items: center; justify-content: center; color: var(--tg-text); transition: opacity 0.2s; }
+.sub-back.pressed { opacity: 0.6; transition: none; }
+.sub-title { position: absolute; display: flex; align-items: center; justify-content: center; color: var(--tg-text); white-space: nowrap; }
+.sub-header { position: absolute; color: var(--tg-section-header); font-family: var(--font-text); font-size: 13px; letter-spacing: -0.08px; line-height: 15.5px; }
+.sub-footer { position: absolute; color: var(--tg-section-header); font-family: var(--font-text); font-size: 13px; letter-spacing: -0.08px; line-height: 15.5px; }
+.sub-row .title { top: 15px; }
+.sub-subtitle { position: absolute; color: var(--tg-text-secondary); font-family: var(--font-text); font-size: 15px; letter-spacing: -0.234px; line-height: 17.9px; white-space: nowrap; }
+.sub-icon { position: absolute; width: 30px; height: 30px; border-radius: 8px; overflow: hidden; }
+.sub-icon svg { display: block; }
+.sub-row .sep { position: absolute; bottom: 0; right: 0; }
+.row.destructive .title { color: var(--tg-destructive); }
+.sub-switch { position: absolute; right: 16px; top: 12px; }
+.ios-switch { position: relative; width: 64px; height: 28px; border-radius: 14px; background: rgba(120, 120, 128, 0.32); }
+.ios-switch.on { background: #34c759; }
+.ios-switch .knob { position: absolute; left: 2px; top: 2px; width: 37px; height: 24px; border-radius: 12px; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.18); }
+.ios-switch.on .knob { left: 25px; }
+
+/* ---------------------------------------------------------------- profile + glass gifts (src/profile) */
+
+.profile-page .sub-back { z-index: 6; }
+.profile-avatar { position: absolute; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.profile-name { position: absolute; display: flex; align-items: center; justify-content: center; color: #fff; white-space: nowrap; }
+.profile-status { position: absolute; text-align: center; color: rgba(255, 255, 255, 0.72); white-space: nowrap; }
+.profile-action { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; color: #fff; }
+.profile-action-icon { width: 28px; height: 28px; }
+.profile-action-label { font-family: var(--font-text); font-size: 12px; font-weight: 500; letter-spacing: 0; line-height: 15px; }
+.profile-info { position: absolute; left: 0; right: 0; height: 62px; }
+.profile-info-key { position: absolute; left: 16px; top: 10px; color: var(--tg-text); font-family: var(--font-text); font-size: 14px; letter-spacing: -0.15px; }
+.profile-info-value { position: absolute; left: 16px; right: 16px; top: 30px; color: var(--tg-accent); font-family: var(--font-text); font-size: 17px; letter-spacing: -0.39px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.profile-info:last-child .profile-info-value { color: var(--tg-text); }
+.profile-tabs { color: var(--tg-text); }
+.profile-tab-pill { position: absolute; border-radius: 17px; background: rgba(255, 255, 255, 0.12); }
+:root[data-theme="light"] .profile-tab-pill { background: rgba(0, 0, 0, 0.07); }
+.profile-tab { position: absolute; top: 0; height: 40px; display: flex; align-items: center; justify-content: center; white-space: nowrap; color: var(--tg-text-secondary);
+  font-family: var(--font-text); font-size: 15px; font-weight: 500; letter-spacing: -0.23px; }
+.profile-tab.selected { color: var(--tg-text); }
+.profile-tab-minis { display: inline-flex; gap: 1px; margin-left: 2px; }
+.profile-tab-mini { display: inline-block; width: 18px; height: 18px; }
+@keyframes gift-mini-in { from { transform: scale(0.01); } to { transform: scale(1); } }
+
+.gift-slot { position: absolute; }
+.gift-shadow { position: absolute; left: 8px; right: 8px; top: 10px; bottom: -4px; border-radius: 20px; background: rgba(0, 0, 0, 0.55);
+  filter: blur(9px); opacity: 0.35; pointer-events: none; will-change: transform, opacity; }
+:root[data-theme="light"] .gift-shadow { background: rgba(0, 0, 0, 0.22); }
+.gift-tile { position: absolute; inset: 0; border-radius: 16px; transform-style: preserve-3d; will-change: transform; }
+.gift-body { position: absolute; inset: 0; border-radius: 16px; overflow: hidden;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.02) 55%), var(--tg-item-bg); }
+:root[data-theme="light"] .gift-body:not(.unique) { background: linear-gradient(160deg, #ffffff, #f2f2f7); }
+.gift-pattern { position: absolute; inset: -10%; background-size: 22px 22px; opacity: 0.14;
+  -webkit-mask-image: radial-gradient(circle at 50% 45%, #000 20%, transparent 75%); mask-image: radial-gradient(circle at 50% 45%, #000 20%, transparent 75%); }
+/* the prismatic streak: a faint holographic band that slides with the tilt */
+.gift-holo { position: absolute; inset: 0; opacity: 0.08; pointer-events: none; mix-blend-mode: screen; background-size: 300% 300%;
+  background-image: linear-gradient(115deg, transparent 30%, rgba(255, 64, 160, 0.55) 40%, rgba(255, 210, 70, 0.55) 46%, rgba(70, 255, 200, 0.55) 52%, rgba(80, 150, 255, 0.55) 58%, transparent 68%); }
+:root[data-theme="light"] .gift-holo { mix-blend-mode: multiply; }
+/* the specular sheen: a soft light that slides across the glass against the tilt */
+.gift-sheen { position: absolute; inset: -35%; pointer-events: none; opacity: 0.35; will-change: transform, opacity;
+  background: radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.08) 28%, rgba(255, 255, 255, 0) 50%); }
+.gift-shard { position: absolute; left: 0; width: 34%; height: 220%; opacity: 0; pointer-events: none; mix-blend-mode: screen;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.7) 50%, rgba(255, 255, 255, 0)); }
+/* the glass edge: a 1 pt ring, brighter where it faces the light */
+.gift-rim { position: absolute; inset: 0; border-radius: 16px; padding: 1px; pointer-events: none; --rim-angle: 135deg;
+  background: linear-gradient(var(--rim-angle), rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.1) 32%, rgba(255, 255, 255, 0.06) 68%, rgba(255, 255, 255, 0.45));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+:root[data-theme="light"] .gift-rim { background: linear-gradient(var(--rim-angle), rgba(255, 255, 255, 1), rgba(0, 0, 0, 0.06) 32%, rgba(0, 0, 0, 0.08) 68%, rgba(255, 255, 255, 0.9)); }
+.gift-art { position: absolute; pointer-events: none; }
+.gift-symbol { position: absolute; pointer-events: none; }
+.gift-ribbon { position: absolute; width: 58px; height: 58px; pointer-events: none; }
+.gift-ribbon svg { display: block; }
+.gift-sender { position: absolute; left: 5px; top: 5px; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  color: #fff; font-family: var(--font-rounded); font-size: 9px; font-weight: 700; pointer-events: none; }
+.gift-resale { position: absolute; left: 50%; height: 20px; padding: 0 6px; margin-left: -34px; min-width: 68px; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 2px;
+  background: rgba(0, 0, 0, 0.3); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); color: #fff;
+  font-family: var(--font-text); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; pointer-events: none; }
+.gift-sparkle { position: absolute; width: 10px; height: 10px; opacity: 0; pointer-events: none; background: #fff;
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); }
+
+/* ---------------------------------------------------------------- demo video captions (stage.js) */
+
+.stage-caption {
+  position: absolute;
+  left: 50%;
+  bottom: 46px;
+  z-index: 200;
+  max-width: 940px;
+  transform: translate(-50%, 0);
+  pointer-events: none;
+  text-align: center;
+}
+.stage-caption span {
+  display: inline-block;
+  padding: 15px 30px 16px;
+  border-radius: 999px;
+  background: rgba(16, 16, 19, 0.74);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.09), 0 10px 30px rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-family: "TG SF Text", -apple-system, system-ui, sans-serif;
+  font-size: 29px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  line-height: 36px;
+  white-space: nowrap;
+}
+.stage-caption b { color: #8ecbff; font-weight: 600; }
+.stage-slow {
+  position: absolute;
+  right: 34px;
+  top: 30px;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px 11px 14px;
+  border-radius: 999px;
+  background: rgba(16, 16, 19, 0.74);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.09);
+  color: #fff;
+  font-family: "TG SF Text", -apple-system, system-ui, sans-serif;
+  font-size: 23px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  pointer-events: none;
+}
+.stage-slow-dot { width: 12px; height: 12px; border-radius: 50%; background: #ffb340; box-shadow: 0 0 10px rgba(255, 179, 64, 0.8); }

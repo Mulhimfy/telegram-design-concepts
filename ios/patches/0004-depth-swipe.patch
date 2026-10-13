@@ -1,0 +1,2378 @@
+diff --git a/submodules/ChatListUI/BUILD b/submodules/ChatListUI/BUILD
+index 57d29e8..70b999c 100644
+--- a/submodules/ChatListUI/BUILD
++++ b/submodules/ChatListUI/BUILD
+@@ -129,6 +129,7 @@ swift_library(
+         "//submodules/TelegramUI/Components/LiveLocationHeaderPanelComponent",
+         "//submodules/TelegramUI/Components/ChatList/ChatListSearchFiltersContainerNode",
+         "//submodules/TelegramUI/Components/ChatList/ChatListHeaderNoticeComponent",
++        "//submodules/TelegramUI/Components/ChatList/DepthSwipe",
+         "//submodules/TelegramUI/Components/GlassBackgroundComponent",
+         "//submodules/TelegramUI/Components/AlertComponent",
+         "//submodules/TelegramUI/Components/AlertComponent/AlertHeaderComponent",
+diff --git a/submodules/ChatListUI/Sources/Node/ChatListItem.swift b/submodules/ChatListUI/Sources/Node/ChatListItem.swift
+index ef7b3de..b707f91 100644
+--- a/submodules/ChatListUI/Sources/Node/ChatListItem.swift
++++ b/submodules/ChatListUI/Sources/Node/ChatListItem.swift
+@@ -29,6 +29,7 @@ import MultilineTextComponent
+ import MultilineTextWithEntitiesComponent
+ import ShimmerEffect
+ import GlassBackgroundComponent
++import DepthSwipe
+ 
+ public enum ChatListItemContent {
+     public final class ThreadInfo: Equatable {
+@@ -1469,6 +1470,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+     private var nextHasActiveRevealControls: Bool = false
+     private var skipFadeout: Bool = false
+     private var customAnimationInProgress: Bool = false
++    private var depthSwipe: DepthSwipeController?
+     
+     private var onlineIsVoiceChat: Bool = false
+     private var currentOnline: Bool?
+@@ -5466,6 +5468,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+                     }
+                     
+                     strongSelf.updateLayout(size: CGSize(width: layout.contentSize.width, height: itemHeight), leftInset: params.leftInset, rightInset: params.rightInset)
++                    strongSelf.depthSwipe?.contentUpdated()
+                     
+                     if item.editing {
+                         strongSelf.setRevealOptions((left: [], right: []), enableAnimations: item.context.sharedContext.energyUsageSettings.fullTranslucency)
+@@ -5609,6 +5612,44 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
+         let highlightedBackgroundFrame = self.highlightedBackgroundNode.frame
+         let highlightedBackgroundLeftInset = self.layoutParams?.6.leftInset ?? 0.0
+         transition.updateFrame(node: self.highlightedBackgroundNode, frame: CGRect(origin: CGPoint(x: highlightedBackgroundLeftInset + offset, y: highlightedBackgroundFrame.minY), size: highlightedBackgroundFrame.size))
++
++        self.updateDepthSwipe(offset: offset, transition: transition)
++    }
++
++    private func updateDepthSwipe(offset: CGFloat, transition: ContainedViewLayoutTransition) {
++        let depthSwipe: DepthSwipeController
++        if let current = self.depthSwipe {
++            depthSwipe = current
++        } else {
++            depthSwipe = DepthSwipeController(contentNode: self.contextContainer, gestureInitialOffset: { [weak self] in
++                return self?.revealGestureInitialOffset
++            }, parts: { [weak self] in
++                return self?.depthSwipeParts()
++            })
++            self.depthSwipe = depthSwipe
++        }
++        depthSwipe.updateRevealOffset(offset, transition: transition, isExtendedActionArmed: self.isDisplayingExtendedRevealOption)
++    }
++
++    private func depthSwipeParts() -> DepthSwipeParts? {
++        guard let item = self.item else {
++            return nil
++        }
++        // Flat pieces that roll over the rim with the row: the name's icons and badges, and what
++        // sits on the photo's edge.
++        let badgeViews: [UIView?] = [self.credibilityIconView, self.verifiedIconView, self.statusIconView, self.titleBadge?.backgroundView, self.avatarTimerBadge, self.avatarLiveBadge?.outline, self.avatarLiveBadge?.foreground, self.starView, self.communityAvatarBadgeBackgroundView]
++        let badgeNodes: [ASDisplayNode?] = [self.secretIconNode, self.mutedIconNode, self.titleBadge?.textNode, self.onlineNode, self.avatarBadgeBackground, self.avatarBadgeNode]
++        let badges: [CALayer] = badgeViews.compactMap({ $0?.layer }) + badgeNodes.compactMap({ $0?.layer })
++        return DepthSwipeParts(
++            titleNode: self.titleNode,
++            textNode: self.textNode.textNode,
++            authorNode: self.authorNode,
++            avatarNode: self.avatarNode.isHidden ? nil : self.avatarNode,
++            avatarPictureNode: self.avatarNode.contentNode,
++            badges: badges,
++            rightInset: self.layoutParams?.6.rightInset ?? 0.0,
++            isDark: item.presentationData.theme.overallDarkAppearance
++        )
+     }
+ 
+     override public func revealOptionsActiveStateUpdated(isActive: Bool, transition: ContainedViewLayoutTransition) {
+diff --git a/submodules/ItemListUI/Sources/Items/ItemListEditableItem.swift b/submodules/ItemListUI/Sources/Items/ItemListEditableItem.swift
+index 955a0d6..443ea74 100644
+--- a/submodules/ItemListUI/Sources/Items/ItemListEditableItem.swift
++++ b/submodules/ItemListUI/Sources/Items/ItemListEditableItem.swift
+@@ -95,6 +95,19 @@ open class ItemListRevealOptionsItemNode: ListViewItemNode, ASGestureRecognizerD
+         return !self.revealOffset.isZero
+     }
+ 
++    /// The reveal offset when the finger caught the row, while it drags it (nil otherwise).
++    public var revealGestureInitialOffset: CGFloat? {
++        guard let recognizer = self.recognizer, recognizer.state == .began || recognizer.state == .changed else {
++            return nil
++        }
++        return self.initialRevealOffset
++    }
++
++    /// The outer action is armed by an over-swipe: letting go runs it (the haptic plays as it arms).
++    public var isDisplayingExtendedRevealOption: Bool {
++        return (self.leftRevealNode?.isDisplayingExtendedAction() ?? false) || (self.rightRevealNode?.isDisplayingExtendedAction() ?? false)
++    }
++
+     private func updateRevealOptionsActive(_ isActive: Bool, transition: ContainedViewLayoutTransition) {
+         if self.isRevealOptionsActive != isActive {
+             self.isRevealOptionsActive = isActive
+diff --git a/submodules/TelegramUI/Components/ChatList/DepthSwipe/BUILD b/submodules/TelegramUI/Components/ChatList/DepthSwipe/BUILD
+new file mode 100644
+index 0000000..afc1484
+--- /dev/null
++++ b/submodules/TelegramUI/Components/ChatList/DepthSwipe/BUILD
+@@ -0,0 +1,23 @@
++load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
++
++# Drop-in module: submodules/TelegramUI/Components/ChatList/DepthSwipe
++# (next to the other chat list components, e.g. ChatList/ChatListHeaderNoticeComponent).
++# ChatListUI depends on it; ChatListItemNode owns one DepthSwipeController per row.
++
++swift_library(
++    name = "DepthSwipe",
++    module_name = "DepthSwipe",
++    srcs = glob([
++        "Sources/**/*.swift",
++    ]),
++    copts = [
++        "-warnings-as-errors",
++    ],
++    deps = [
++        "//submodules/AsyncDisplayKit",
++        "//submodules/Display",
++    ],
++    visibility = [
++        "//visibility:public",
++    ],
++)
+diff --git a/submodules/TelegramUI/Components/ChatList/DepthSwipe/Sources/DepthSwipeContent.swift b/submodules/TelegramUI/Components/ChatList/DepthSwipe/Sources/DepthSwipeContent.swift
+new file mode 100644
+index 0000000..ba66b14
+--- /dev/null
++++ b/submodules/TelegramUI/Components/ChatList/DepthSwipe/Sources/DepthSwipeContent.swift
+@@ -0,0 +1,554 @@
++import Foundation
++import UIKit
++import CoreText
++import Display
++
++// The flat pieces Depth Swipe replaces, measured and drawn once when the rig starts — the
++// measuring half of prototype/src/chats/depth.js (units(), buildTitle: "every letter where the
++// browser put it", buildLines / buildAvatar: the pictures) and chat-list.js meanColor (the colour of
++// the disc's rim). DepthSwipeLayers puts them on layers.
++
++private func isJoiningScript(_ scalar: Unicode.Scalar) -> Bool {
++    // depth.js JOINING: Hebrew, Arabic, Syriac… (U+0590–08FF), Indic (U+0900–0DFF), presentation forms.
++    switch scalar.value {
++    case 0x0590 ... 0x08FF, 0x0900 ... 0x0DFF, 0xFB1D ... 0xFDFF, 0xFE70 ... 0xFEFF:
++        return true
++    default:
++        return false
++    }
++}
++
++/// depth.js units(): grapheme clusters, or words for scripts whose letters join (splitting those
++/// would break their shaping). UTF-16 ranges, whitespace included (it is skipped later).
++func depthSwipeTextUnits(_ string: NSString) -> [NSRange] {
++    var ranges: [NSRange] = []
++    let full = NSRange(location: 0, length: string.length)
++    if (string as String).unicodeScalars.contains(where: isJoiningScript) {
++        var start: Int?
++        var startIsSpace = false
++        for i in 0 ..< string.length {
++            let isSpace = CharacterSet.whitespacesAndNewlines.contains(Unicode.Scalar(string.character(at: i)) ?? " ")
++            if let current = start, isSpace != startIsSpace {
++                ranges.append(NSRange(location: current, length: i - current))
++                start = nil
++            }
++            if start == nil {
++                start = i
++                startIsSpace = isSpace
++            }
++        }
++        if let current = start {
++            ranges.append(NSRange(location: current, length: string.length - current))
++        }
++    } else {
++        string.enumerateSubstrings(in: full, options: .byComposedCharacterSequences) { _, range, _, _ in
++            ranges.append(range)
++        }
++    }
++    return ranges
++}
++
++/// The name, letter by letter: each letter's advance box in the title node and its cell in one
++/// atlas image holding every colour a letter needs (its face, its copy in shadow and the extrusion
++/// copies), so all the letter layers share a single texture.
++final class DepthSwipeTitleArt {
++    struct Unit {
++        /// The letter's left edge and width in the title node (its advances, as the line placed it).
++        let x: CGFloat
++        let width: CGFloat
++        /// Its cell: the left edge in the title node (on the pixel grid, so at rest the letter lands
++        /// on the same pixels as the flat name), the width, and the left edge in the atlas.
++        let cellLeft: CGFloat
++        let cellWidth: CGFloat
++        let cellX: CGFloat
++    }
++
++    /// Atlas rows: the face, its copy in shadow, then extrusion copy j = 1 … layers (front to back).
++    static let faceRow = 0
++    static let shadeRow = 1
++    static func copyRow(_ j: Int) -> Int {
++        return 1 + j
++    }
++
++    /// Room around each letter for ink outside its advance (overhangs, accents, emoji).
++    static let padding = CGSize(width: 4.0, height: 3.0)
++
++    let units: [Unit]
++    let image: CGImage
++    let size: CGSize
++    let nodeSize: CGSize
++    let rowCount: Int
++
++    private init(units: [Unit], image: CGImage, size: CGSize, nodeSize: CGSize, rowCount: Int) {
++        self.units = units
++        self.image = image
++        self.size = size
++        self.nodeSize = nodeSize
++        self.rowCount = rowCount
++    }
++
++    /// The letter's layer frame in its glyph layer (whose bounds are the letter's advance box).
++    func pieceFrame(_ unit: Unit) -> CGRect {
++        let padding = DepthSwipeTitleArt.padding
++        return CGRect(x: unit.cellLeft - unit.x, y: -padding.height, width: unit.cellWidth, height: self.nodeSize.height + padding.height * 2.0)
++    }
++
++    /// The letter's cell in a row, in unit coordinates of the atlas (CALayer.contentsRect).
++    func contentsRect(_ unit: Unit, row: Int) -> CGRect {
++        let padding = DepthSwipeTitleArt.padding
++        let cellHeight = self.nodeSize.height + padding.height * 2.0
++        return CGRect(
++            x: unit.cellX / self.size.width,
++            y: CGFloat(row) * cellHeight / self.size.height,
++            width: unit.cellWidth / self.size.width,
++            height: cellHeight / self.size.height
++        )
++    }
++
++    /// The extrusion: lit next to the face, darker toward the back (depth.js buildTitle ramp).
++    static func extrusionColor(_ u: CGFloat, isDark: Bool) -> UIColor {
++        let a: [CGFloat] = isDark ? [200.0, 200.0, 206.0] : [64.0, 64.0, 68.0]
++        let b: [CGFloat] = isDark ? [58.0, 58.0, 62.0] : [158.0, 158.0, 164.0]
++        let c = (0 ..< 3).map { i in (a[i] + (b[i] - a[i]) * u).rounded() / 255.0 }
++        return UIColor(red: c[0], green: c[1], blue: c[2], alpha: 1.0)
++    }
++
++    /// Rolled away from the light the face darkens: its copy in shadow (depth.js shadeColor).
++    static func shadeColor(isDark: Bool) -> UIColor {
++        return isDark ? UIColor(red: 0x55 / 255.0, green: 0x55 / 255.0, blue: 0x5b / 255.0, alpha: 1.0) : UIColor(red: 0x9a / 255.0, green: 0x9a / 255.0, blue: 0xa0 / 255.0, alpha: 1.0)
++    }
++
++    /// Splits the title node's rendered line(s) — the same CTLines TextNode drew, truncation token
++    /// included — into letters and draws them. nil when there is nothing to draw.
++    static func make(layout: TextNodeLayout, nodeSize: CGSize, isDark: Bool) -> DepthSwipeTitleArt? {
++        guard let attributedString = layout.attributedString, attributedString.length != 0, nodeSize.width > 0.0, nodeSize.height > 0.0 else {
++            return nil
++        }
++        let string = attributedString.string as NSString
++        let unitRanges = depthSwipeTextUnits(string)
++        if unitRanges.isEmpty {
++            return nil
++        }
++        var unitOfIndex = [Int](repeating: unitRanges.count - 1, count: string.length)
++        for (u, range) in unitRanges.enumerated() {
++            for i in range.location ..< range.location + range.length {
++                unitOfIndex[i] = u
++            }
++        }
++
++        var lines: [(line: CTLine, origin: CGPoint)] = []
++        layout.enumerateRenderedLines(in: CGRect(origin: CGPoint(), size: nodeSize)) { line, origin in
++            lines.append((line, origin))
++        }
++
++        struct Segment {
++            let line: Int
++            let run: CTRun
++            let start: Int
++            var count: Int
++            let usesContextColor: Bool
++            let isColorGlyphs: Bool
++        }
++        struct Collected {
++            var segments: [Segment] = []
++            var minX: CGFloat = .greatestFiniteMagnitude
++            var maxX: CGFloat = -.greatestFiniteMagnitude
++            var hasToken = false
++        }
++        var collected = [Collected](repeating: Collected(), count: unitRanges.count)
++        let contextColorKey = kCTForegroundColorFromContextAttributeName as String
++
++        for (lineIndex, entry) in lines.enumerated() {
++            let runs = (CTLineGetGlyphRuns(entry.line) as [AnyObject]) as! [CTRun]
++            for run in runs {
++                let count = CTRunGetGlyphCount(run)
++                if count == 0 {
++                    continue
++                }
++                var indices = [CFIndex](repeating: 0, count: count)
++                var positions = [CGPoint](repeating: CGPoint(), count: count)
++                var advances = [CGSize](repeating: CGSize(), count: count)
++                CTRunGetStringIndices(run, CFRange(location: 0, length: 0), &indices)
++                CTRunGetPositions(run, CFRange(location: 0, length: 0), &positions)
++                CTRunGetAdvances(run, CFRange(location: 0, length: 0), &advances)
++                let attributes = CTRunGetAttributes(run) as NSDictionary
++                let usesContextColor = attributes[contextColorKey] != nil
++                // Colour emoji keep their colours in every copy (CSS `color` does not touch them);
++                // told apart as TextNode does.
++                let isColorGlyphs = (attributes["NSFont"] as? UIFont)?.fontName.contains("ColorEmoji") ?? false
++                var lastUnit = -1
++                for k in 0 ..< count {
++                    let index = indices[k]
++                    let unit = index >= 0 && index < string.length ? unitOfIndex[index] : unitRanges.count - 1
++                    let x0 = entry.origin.x + positions[k].x
++                    let x1 = x0 + advances[k].width
++                    var target = collected[unit]
++                    if unit == lastUnit, var last = target.segments.popLast() {
++                        last.count += 1
++                        target.segments.append(last)
++                    } else {
++                        target.segments.append(Segment(line: lineIndex, run: run, start: k, count: 1, usesContextColor: usesContextColor, isColorGlyphs: isColorGlyphs))
++                    }
++                    target.minX = min(target.minX, min(x0, x1))
++                    target.maxX = max(target.maxX, max(x0, x1))
++                    if usesContextColor {
++                        target.hasToken = true
++                    }
++                    collected[unit] = target
++                    lastUnit = unit
++                }
++            }
++        }
++
++        // Letters in visual order (for left-to-right names the prototype's string order); spaces
++        // are skipped as in depth.js, the truncation "…" is a letter of its own.
++        var kept: [(range: NSRange, collected: Collected)] = []
++        for (u, range) in unitRanges.enumerated() {
++            let c = collected[u]
++            if c.segments.isEmpty || c.maxX <= c.minX {
++                continue
++            }
++            let text = string.substring(with: range)
++            if !c.hasToken && text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
++                continue
++            }
++            kept.append((range, c))
++        }
++        kept.sort { $0.collected.minX < $1.collected.minX }
++        if kept.isEmpty {
++            return nil
++        }
++        if layout.truncated && !kept.contains(where: { $0.collected.hasToken }) {
++            // Its "…" is drawn as an extra trailing line (a name with a line break), which the
++            // rendered lines leave out: the flat name stays.
++            return nil
++        }
++        let hasColorGlyphs = kept.contains(where: { $0.collected.segments.contains(where: { $0.isColorGlyphs }) })
++
++        let padding = DepthSwipeTitleArt.padding
++        let scale = UIScreenScale
++        var units: [Unit] = []
++        var cellX: CGFloat = 0.0
++        for entry in kept {
++            let x = entry.collected.minX
++            let width = entry.collected.maxX - x
++            let cellLeft = floor((x - padding.width) * scale) / scale
++            let cellWidth = ceil((x + width + padding.width) * scale) / scale - cellLeft
++            units.append(Unit(x: x, width: width, cellLeft: cellLeft, cellWidth: cellWidth, cellX: cellX))
++            cellX += ceil(cellWidth)
++        }
++        let cellHeight = nodeSize.height + padding.height * 2.0
++        let rowCount = 2 + DepthSwipeLook.title.layers
++        let size = CGSize(width: max(1.0, cellX), height: cellHeight * CGFloat(rowCount))
++
++        // The "…" of a truncated name takes its colour from the context: the name's colour there.
++        var tokenColor = UIColor.black
++        if let color = attributedString.attribute(.foregroundColor, at: max(0, attributedString.length - 1), effectiveRange: nil) as? UIColor {
++            tokenColor = color
++        }
++
++        // Every letter alone in its cell of a row starting at y = 0, at its place in the line:
++        // all of its glyphs, or only its text (`false`) or only its colour emoji (`true`).
++        func drawFaces(_ context: CGContext, _ colorGlyphs: Bool?) {
++            // As TextNode draws.
++            context.setAllowsAntialiasing(true)
++            context.setAllowsFontSmoothing(false)
++            context.setShouldSmoothFonts(false)
++            context.setAllowsFontSubpixelPositioning(false)
++            context.setShouldSubpixelPositionFonts(false)
++            context.setAllowsFontSubpixelQuantization(true)
++            context.setShouldSubpixelQuantizeFonts(true)
++            for (i, unit) in units.enumerated() {
++                let cell = CGRect(x: unit.cellX, y: 0.0, width: unit.cellWidth, height: cellHeight)
++                context.saveGState()
++                context.clip(to: cell)
++                context.translateBy(x: unit.cellX - unit.cellLeft, y: padding.height)
++                context.textMatrix = CGAffineTransform(scaleX: 1.0, y: -1.0)
++                for segment in kept[i].collected.segments where colorGlyphs == nil || colorGlyphs == segment.isColorGlyphs {
++                    if segment.usesContextColor {
++                        context.setFillColor(tokenColor.cgColor)
++                    }
++                    context.textPosition = lines[segment.line].origin
++                    CTRunDraw(segment.run, context, CFRange(location: segment.start, length: segment.count))
++                }
++                context.restoreGState()
++            }
++        }
++
++        let format = UIGraphicsImageRendererFormat()
++        format.scale = scale
++        format.opaque = false
++        let renderer = UIGraphicsImageRenderer(size: size, format: format)
++        let image = renderer.image { rendererContext in
++            let context = rendererContext.cgContext
++
++            // The faces: each letter alone in its cell, at its place in the line.
++            drawFaces(context, nil)
++
++            // The other rows: the faces again, recoloured (their alpha kept); colour emoji are laid
++            // over them as they are.
++            let rowSize = CGSize(width: size.width, height: cellHeight)
++            var textFaces: UIImage?
++            var colorFaces: UIImage?
++            if hasColorGlyphs {
++                let rowRenderer = UIGraphicsImageRenderer(size: rowSize, format: format)
++                textFaces = rowRenderer.image { rowContext in
++                    drawFaces(rowContext.cgContext, false)
++                }
++                colorFaces = rowRenderer.image { rowContext in
++                    drawFaces(rowContext.cgContext, true)
++                }
++            } else if let full = context.makeImage(), let faces = full.cropping(to: CGRect(x: 0.0, y: 0.0, width: CGFloat(full.width), height: (cellHeight * scale).rounded())) {
++                textFaces = UIImage(cgImage: faces, scale: scale, orientation: .up)
++            }
++            guard let tinted = textFaces else {
++                return
++            }
++            func tint(row: Int, color: UIColor) {
++                let rect = CGRect(origin: CGPoint(x: 0.0, y: CGFloat(row) * cellHeight), size: rowSize)
++                tinted.draw(in: CGRect(origin: rect.origin, size: tinted.size))
++                context.saveGState()
++                context.setBlendMode(.sourceIn)
++                context.setFillColor(color.cgColor)
++                context.fill(rect)
++                context.restoreGState()
++                colorFaces?.draw(in: CGRect(origin: rect.origin, size: rowSize))
++            }
++            tint(row: DepthSwipeTitleArt.shadeRow, color: DepthSwipeTitleArt.shadeColor(isDark: isDark))
++            let layers = DepthSwipeLook.title.layers
++            for j in 1 ... layers {
++                let u = CGFloat(j - 1) / CGFloat(max(1, layers - 1))
++                tint(row: DepthSwipeTitleArt.copyRow(j), color: DepthSwipeTitleArt.extrusionColor(u, isDark: isDark))
++            }
++        }
++        guard let cgImage = image.cgImage else {
++            return nil
++        }
++        return DepthSwipeTitleArt(units: units, image: cgImage, size: size, nodeSize: nodeSize, rowCount: rowCount)
++    }
++}
++
++/// A line of the message as a picture: one band of a snapshot of the text node it belongs to.
++struct DepthSwipePlateArt {
++    let image: CGImage
++    /// The band in the snapshot (CALayer.contentsRect).
++    let contentsRect: CGRect
++    /// The band in the layer the text node sits in.
++    let frame: CGRect
++    /// The node's own opacity (a dimmed line stays dimmed).
++    let opacity: Float
++}
++
++/// The photo as the disc's pictures: its picture (the face, with parallax) and where it sits in the
++/// photo, the rest of its drawing (a story ring, printed on the face), its own corner radius (round,
++/// or a forum's rounded square), the edges of the face and the back, and the rim's colour.
++struct DepthSwipeDiscArt {
++    let picture: CGImage
++    let pictureFrame: CGRect
++    let decorations: CGImage?
++    let cornerRadius: CGFloat
++    let faceEdge: CGImage?
++    let backEdge: CGImage?
++    let color: (r: CGFloat, g: CGFloat, b: CGFloat)
++}
++
++/// A flat badge of the row (verified, emoji status, muted, the online marker…) as a picture: the rig
++/// moves its copy, the badge itself is only hidden (the row's layout keeps laying it out).
++struct DepthSwipeBadgeArt {
++    let original: CALayer
++    let image: CGImage
++}
++
++enum DepthSwipeSnapshot {
++    private static func renderer(size: CGSize) -> UIGraphicsImageRenderer {
++        let format = UIGraphicsImageRendererFormat()
++        format.scale = UIScreenScale
++        format.opaque = false
++        return UIGraphicsImageRenderer(size: size, format: format)
++    }
++
++    /// A layer as it is drawn now (its contents and sublayers), without the layers in `hiding`
++    /// (hidden only while it is drawn, inside one transaction: nothing changes on screen).
++    static func image(of layer: CALayer, hiding: [CALayer] = []) -> CGImage? {
++        let size = layer.bounds.size
++        if size.width <= 0.0 || size.height <= 0.0 {
++            return nil
++        }
++        let shown = hiding.filter { !$0.isHidden }
++        CATransaction.begin()
++        CATransaction.setDisableActions(true)
++        for hidden in shown {
++            hidden.isHidden = true
++        }
++        let image = self.renderer(size: size).image { rendererContext in
++            let context = rendererContext.cgContext
++            context.translateBy(x: -layer.bounds.minX, y: -layer.bounds.minY)
++            layer.render(in: context)
++        }.cgImage
++        for hidden in shown {
++            hidden.isHidden = false
++        }
++        CATransaction.commit()
++        return image
++    }
++
++    /// The message's lines: the text node drawn from its layout now (as TextNode draws, whether or
++    /// not its asynchronous display has caught up), its inline emoji layers over it, cut into one
++    /// band per rendered line at the midpoints between lines.
++    static func lines(of textNode: TextNode, in parent: CALayer) -> [DepthSwipePlateArt] {
++        guard let layout = textNode.cachedLayout else {
++            return []
++        }
++        let layer = textNode.layer
++        let size = layer.bounds.size
++        if size.width <= 0.0 || size.height <= 0.0 {
++            return []
++        }
++        var bands: [(top: CGFloat, bottom: CGFloat)] = []
++        layout.enumerateRenderedLines(in: CGRect(origin: CGPoint(), size: size)) { line, origin in
++            var ascent: CGFloat = 0.0
++            var descent: CGFloat = 0.0
++            var leading: CGFloat = 0.0
++            let _ = CTLineGetTypographicBounds(line, &ascent, &descent, &leading)
++            bands.append((origin.y - ascent, origin.y + descent))
++        }
++        if bands.isEmpty {
++            return []
++        }
++        let image = self.renderer(size: size).image { rendererContext in
++            let context = rendererContext.cgContext
++            TextNode.draw(CGRect(origin: CGPoint(), size: size), withParameters: TextNode.DrawingParameters(cachedLayout: layout, renderContentTypes: .all), isCancelled: { false }, isRasterizing: false)
++            for sublayer in layer.sublayers ?? [] where !sublayer.isHidden && sublayer.opacity > 0.0 {
++                context.saveGState()
++                context.translateBy(x: sublayer.frame.minX, y: sublayer.frame.minY)
++                sublayer.render(in: context)
++                context.restoreGState()
++            }
++        }
++        guard let cgImage = image.cgImage else {
++            return []
++        }
++        let frame = layer.superlayer != nil ? layer.convert(layer.bounds, to: parent) : layer.frame
++        let scale = UIScreenScale
++        // Cut on the pixel grid, so at rest every plate shows the flat text's own pixels.
++        func boundary(_ i: Int) -> CGFloat {
++            if i == 0 {
++                return 0.0
++            } else if i == bands.count {
++                return size.height
++            }
++            return min(size.height, max(0.0, ((bands[i - 1].bottom + bands[i].top) * 0.5 * scale).rounded() / scale))
++        }
++        var plates: [DepthSwipePlateArt] = []
++        for i in 0 ..< bands.count {
++            let top = boundary(i)
++            let bottom = boundary(i + 1)
++            if bottom <= top {
++                continue
++            }
++            plates.append(DepthSwipePlateArt(
++                image: cgImage,
++                contentsRect: CGRect(x: 0.0, y: top / size.height, width: 1.0, height: (bottom - top) / size.height),
++                frame: CGRect(x: frame.minX, y: frame.minY + top, width: frame.width, height: bottom - top),
++                opacity: layer.opacity
++            ))
++        }
++        return plates
++    }
++
++    /// A one-line node (the author's line in groups) as one plate.
++    static func plate(of layer: CALayer, in parent: CALayer) -> DepthSwipePlateArt? {
++        guard let image = self.image(of: layer) else {
++            return nil
++        }
++        return DepthSwipePlateArt(image: image, contentsRect: CGRect(x: 0.0, y: 0.0, width: 1.0, height: 1.0), frame: layer.convert(layer.bounds, to: parent), opacity: layer.opacity)
++    }
++
++    /// chat-list.js meanColor: the photo's average colour (8 × 8, transparent corners ignored).
++    static func meanColor(_ image: CGImage) -> (r: CGFloat, g: CGFloat, b: CGFloat)? {
++        guard let average = self.average(image), average.a >= 1.0 / 255.0 else {
++            return nil
++        }
++        return (average.r, average.g, average.b)
++    }
++
++    /// The average colour (un-premultiplied) and coverage of an image, from an 8 × 8 copy.
++    private static func average(_ image: CGImage) -> (r: CGFloat, g: CGFloat, b: CGFloat, a: CGFloat)? {
++        let side = 8
++        var pixels = [UInt8](repeating: 0, count: side * side * 4)
++        let colorSpace = CGColorSpaceCreateDeviceRGB()
++        let drawn: Bool = pixels.withUnsafeMutableBytes { buffer -> Bool in
++            guard let context = CGContext(data: buffer.baseAddress, width: side, height: side, bitsPerComponent: 8, bytesPerRow: side * 4, space: colorSpace, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
++                return false
++            }
++            context.interpolationQuality = .medium
++            context.draw(image, in: CGRect(x: 0, y: 0, width: side, height: side))
++            return true
++        }
++        if !drawn {
++            return nil
++        }
++        var r = 0.0
++        var g = 0.0
++        var b = 0.0
++        var a = 0.0
++        for i in 0 ..< side * side {
++            r += Double(pixels[i * 4])
++            g += Double(pixels[i * 4 + 1])
++            b += Double(pixels[i * 4 + 2])
++            a += Double(pixels[i * 4 + 3])
++        }
++        if a <= 0.0 {
++            return (0.0, 0.0, 0.0, 0.0)
++        }
++        return (CGFloat(r / a), CGFloat(g / a), CGFloat(b / a), CGFloat(a / Double(side * side * 255)))
++    }
++
++    /// The photo's own clip, as a fraction of its height: AvatarNode clips the picture round (0.5)
++    /// or, for forums, to a rounded square (0.25). Round when no clipping layer says otherwise.
++    static func cornerFraction(of layer: CALayer) -> CGFloat {
++        var fraction: CGFloat = 0.5
++        for candidate in [layer] + (layer.sublayers ?? []) where candidate.masksToBounds && candidate.cornerRadius > 0.0 && candidate.bounds.height > 0.0 {
++            fraction = min(fraction, candidate.cornerRadius / candidate.bounds.height)
++        }
++        return fraction
++    }
++
++    /// The disc's outline: a circle, or a rounded square with circular corners (CALayer.cornerRadius).
++    static func outline(_ rect: CGRect, cornerRadius: CGFloat) -> CGPath {
++        let radius = min(cornerRadius, min(rect.width, rect.height) * 0.5)
++        if radius >= min(rect.width, rect.height) * 0.5 - 1e-3 {
++            return CGPath(ellipseIn: rect, transform: nil)
++        }
++        return CGPath(roundedRect: rect, cornerWidth: radius, cornerHeight: radius, transform: nil)
++    }
++
++    /// The face's edge (depth.js `rim`: inset 0.75 pt white 35 %, inner shadow 6 pt black 25 %) or
++    /// the back's (`backShade`: white 30 %, 8 pt black 30 %).
++    static func edgeImage(size: CGSize, cornerRadius: CGFloat, ringAlpha: CGFloat, shadowBlur: CGFloat, shadowAlpha: CGFloat) -> CGImage? {
++        if size.width <= 0.0 || size.height <= 0.0 {
++            return nil
++        }
++        return self.renderer(size: size).image { rendererContext in
++            let context = rendererContext.cgContext
++            let rect = CGRect(origin: CGPoint(), size: size)
++            let outline = self.outline(rect, cornerRadius: cornerRadius)
++            context.addPath(outline)
++            context.clip()
++            // Inner shadow: the outside of the outline, filled with a shadow that falls inward.
++            context.saveGState()
++            context.setShadow(offset: CGSize(), blur: shadowBlur, color: UIColor(white: 0.0, alpha: shadowAlpha).cgColor)
++            context.addRect(rect.insetBy(dx: -shadowBlur * 4.0, dy: -shadowBlur * 4.0))
++            context.addPath(outline)
++            context.setFillColor(UIColor.black.cgColor)
++            context.fillPath(using: .evenOdd)
++            context.restoreGState()
++            // The ring.
++            let ring: CGFloat = 0.75
++            context.setStrokeColor(UIColor(white: 1.0, alpha: ringAlpha).cgColor)
++            context.setLineWidth(ring)
++            context.addPath(self.outline(rect.insetBy(dx: ring * 0.5, dy: ring * 0.5), cornerRadius: max(0.0, cornerRadius - ring * 0.5)))
++            context.strokePath()
++        }.cgImage
++    }
++}
+diff --git a/submodules/TelegramUI/Components/ChatList/DepthSwipe/Sources/DepthSwipeController.swift b/submodules/TelegramUI/Components/ChatList/DepthSwipe/Sources/DepthSwipeController.swift
+new file mode 100644
+index 0000000..edd16e4
+--- /dev/null
++++ b/submodules/TelegramUI/Components/ChatList/DepthSwipe/Sources/DepthSwipeController.swift
+@@ -0,0 +1,453 @@
++import Foundation
++import UIKit
++import QuartzCore
++import AsyncDisplayKit
++import Display
++
++// Depth Swipe for one chat list row — the Swift twin of the wiring in
++// prototype/src/chats/chat-list.js (ChatRow.depthStart / setOffset / update and the reveal options'
++// haptic, prototype/src/chats/reveal-options.js):
++//   · ChatListItemNode.updateRevealOffset feeds every change of the reveal offset (the finger, the
++//     release spring, a tap closing the row, an action closing or filling it) and whether the
++//     full-swipe action is armed; the reveal gesture's start offset (while the finger holds the
++//     row) is read every frame; the row's layout feeds contentUpdated();
++//   · a swipe, or a move on its own of more than half a point, starts the rig: the flat name,
++//     message and photo are measured and drawn once (DepthSwipeContent), replaced by layers
++//     (DepthSwipeLayers) and hidden; a display link then runs the rig on the offset as it is
++//     displayed, its velocity and the pull;
++//   · the outer action arming (the haptic ItemListRevealOptionsNode plays) spins the letters and
++//     flips the disc;
++//   · when nothing moves any more and nothing is round the rim the layers go and the flat row shows
++//     again; resting open with pieces round the rim the layers stay without a display link.
++// Reduce Motion: the rig does not run.
++
++/// The flat pieces of a row the rig replaces while it runs.
++public struct DepthSwipeParts {
++    /// The name (one TextNode, drawn letter by letter from its own lines).
++    public var titleNode: TextNode?
++    /// The message (its rendered lines become plates).
++    public var textNode: TextNode?
++    /// Groups: the author's line above the message (one plate).
++    public var authorNode: ASDisplayNode?
++    /// The photo (the disc replaces it) and, inside it, the picture itself (the disc's face, with
++    /// parallax); whatever else the photo draws, like a story ring, is printed on the face.
++    public var avatarNode: ASDisplayNode?
++    public var avatarPictureNode: ASDisplayNode?
++    /// Flat badges that roll over the rim with the row: the name's icons and badges, and what sits
++    /// on the photo's edge (online, timer, live…).
++    public var badges: [CALayer]
++    /// The row's right inset (safe area): the message box ends that much earlier.
++    public var rightInset: CGFloat
++    /// Day / night extrusion colours.
++    public var isDark: Bool
++
++    public init(titleNode: TextNode?, textNode: TextNode?, authorNode: ASDisplayNode?, avatarNode: ASDisplayNode?, avatarPictureNode: ASDisplayNode?, badges: [CALayer], rightInset: CGFloat, isDark: Bool) {
++        self.titleNode = titleNode
++        self.textNode = textNode
++        self.authorNode = authorNode
++        self.avatarNode = avatarNode
++        self.avatarPictureNode = avatarPictureNode
++        self.badges = badges
++        self.rightInset = rightInset
++        self.isDark = isDark
++    }
++}
++
++public final class DepthSwipeController {
++    /// The flat pieces are hidden by a finished, kept animation of `hidden`: it hides what is on
++    /// screen without touching the values the row's own layout sets (nor is it overridden by its
++    /// opacity animations), and removing it shows them as they are now.
++    private static let hiddenAnimationKey = "DepthSwipe.flat"
++
++    private weak var contentNode: ASDisplayNode?
++    private let gestureInitialOffset: () -> CGFloat?
++    private let parts: () -> DepthSwipeParts?
++
++    private let rig = DepthSwipeRig(geometry: DepthSwipeGeometry(titleX: 0.0, titleOrigin: 0.0, glyphCenters: [], iconCenters: [], textLeft: nil, lineCount: 0, avatarCenter: nil, avatarHalf: 0.0))
++    private var tracker = DepthSwipeTracker()
++    private var layers: DepthSwipeLayers?
++    private var hiddenLayers: [CALayer] = []
++    private var link: SharedDisplayLinkDriver.Link?
++    private var frameDuration: Double = 1.0 / 60.0
++
++    private var targetOffset: CGFloat = 0.0
++    private var isExtendedActionArmed: Bool = false
++    /// Where the row was the frame before the rig started (the velocity starts from it).
++    private var startOffset: Double?
++    private var lastPresented: (offset: CGFloat, time: Double)?
++    private var lastFrame: (time: Double, offset: Double, pull: Double)?
++    /// The disc's edge pictures, kept for the row's next swipes.
++    private var edgeImages: (size: CGSize, cornerRadius: CGFloat, face: CGImage?, back: CGImage?)?
++
++    /// `contentNode`: the node the reveal offset moves (its bounds origin is −offset), whose
++    /// coordinates are the row's at rest. `gestureInitialOffset`: the reveal offset when the finger
++    /// caught the row, while it drags it (nil otherwise). `parts`: the row's flat pieces, asked for
++    /// when the rig starts and when the row's content changes while it runs.
++    public init(contentNode: ASDisplayNode, gestureInitialOffset: @escaping () -> CGFloat?, parts: @escaping () -> DepthSwipeParts?) {
++        self.contentNode = contentNode
++        self.gestureInitialOffset = gestureInitialOffset
++        self.parts = parts
++    }
++
++    deinit {
++        // The row goes with its layers (possibly off the main thread): only the display link is
++        // left to stop.
++        self.link?.invalidate()
++    }
++
++    public var isActive: Bool {
++        return self.rig.isActive
++    }
++
++    /// The rig's clock: the time the frame being prepared will be on screen.
++    private func displayTime() -> Double {
++        return CACurrentMediaTime() + self.frameDuration
++    }
++
++    // MARK: - Hooks
++
++    /// Every change of the reveal offset (ItemListRevealOptionsItemNode.updateRevealOffset).
++    /// `isExtendedActionArmed`: the full-swipe action is armed (letting go runs it).
++    public func updateRevealOffset(_ offset: CGFloat, transition: ContainedViewLayoutTransition, isExtendedActionArmed: Bool) {
++        let previousTarget = self.targetOffset
++        let presented = self.presentedOffset() ?? previousTarget
++        self.targetOffset = offset
++        let now = self.displayTime()
++
++        if self.gestureInitialOffset() != nil {
++            // ChatRow.beginSwipe: the finger moves the row (a running rig carries on).
++            if !self.rig.isActive {
++                self.begin(at: now, from: previousTarget)
++            }
++        } else if transition.isAnimated && DepthSwipeTracker.animatedMoveStarts(target: Double(offset), presented: Double(presented)) {
++            // ChatRow.setOffset(animated): the row moves on its own.
++            if !self.rig.isActive {
++                self.begin(at: now, from: presented)
++            }
++        }
++
++        // The full-swipe moment: ItemListRevealOptionsNode's haptic when the outer action arms.
++        if isExtendedActionArmed && !self.isExtendedActionArmed && !transition.isAnimated {
++            self.rig.spin(at: now, direction: offset > 0.0 ? 1 : -1)
++        }
++        self.isExtendedActionArmed = isExtendedActionArmed
++
++        if self.rig.isActive {
++            self.startLink()
++        }
++    }
++
++    /// The row's content was laid out again (a new message, the mute icon, another theme…): while
++    /// the rig runs its pieces are rebuilt from the new content and the motion carries on.
++    public func contentUpdated() {
++        if !self.rig.isActive {
++            return
++        }
++        self.removeLayers()
++        if !self.build() {
++            self.rig.end()
++            self.stopLink()
++            return
++        }
++        if let lastFrame = self.lastFrame {
++            // The new pieces where the old ones were.
++            self.rig.update(at: lastFrame.time, offset: lastFrame.offset, velocity: self.tracker.velocity, pull: lastFrame.pull)
++            self.layers?.apply(self.rig.frame)
++        }
++        self.startLink()
++    }
++
++    /// Back to the flat row at once.
++    public func reset() {
++        self.end()
++        self.isExtendedActionArmed = false
++    }
++
++    // MARK: - Lifecycle
++
++    private func begin(at now: Double, from offset: CGFloat) {
++        if UIAccessibility.isReduceMotionEnabled {
++            return
++        }
++        guard let contentNode = self.contentNode, contentNode.isInHierarchy else {
++            return
++        }
++        if !self.build() {
++            return
++        }
++        self.rig.begin(at: now)
++        self.startOffset = Double(offset)
++        self.lastPresented = nil
++        self.lastFrame = nil
++        self.startLink()
++    }
++
++    private func end() {
++        if self.rig.isActive {
++            self.rig.end()
++        }
++        self.removeLayers()
++        self.stopLink()
++        self.startOffset = nil
++        self.lastFrame = nil
++    }
++
++    /// Measures the flat pieces, draws them on layers and hides them. False when there is nothing
++    /// to show.
++    private func build() -> Bool {
++        guard let contentNode = self.contentNode, let parts = self.parts() else {
++            return false
++        }
++        let content = contentNode.layer
++        let look = DepthSwipeLook.self
++        var hidden: [CALayer] = []
++
++        func isShown(_ layer: CALayer) -> Bool {
++            return !layer.isHidden && layer.opacity > 0.01 && layer.superlayer != nil && layer.bounds.width > 0.0 && layer.bounds.height > 0.0
++        }
++        func isInside(_ layer: CALayer, _ ancestor: CALayer) -> Bool {
++            var current = layer.superlayer
++            while let candidate = current {
++                if candidate === ancestor {
++                    return true
++                }
++                current = candidate.superlayer
++            }
++            return false
++        }
++        let shownBadges = parts.badges.filter(isShown)
++
++        // The name.
++        var title: (art: DepthSwipeTitleArt, frame: CGRect, parent: CALayer, above: CALayer)?
++        var titleX = 0.0
++        var titleOrigin = 0.0
++        var glyphCenters: [Double] = []
++        if let titleNode = parts.titleNode, let layout = titleNode.cachedLayout, isShown(titleNode.layer), let parent = titleNode.layer.superlayer {
++            let layer = titleNode.layer
++            if let art = DepthSwipeTitleArt.make(layout: layout, nodeSize: layer.bounds.size, isDark: parts.isDark) {
++                title = (art, layer.frame, parent, layer)
++                titleX = Double(layer.convert(layer.bounds, to: content).minX)
++                titleOrigin = Double(layer.bounds.width * 0.5)
++                glyphCenters = art.units.map { Double($0.x + $0.width * 0.5) }
++                hidden.append(layer)
++            }
++        }
++
++        // The message: the author's line, then the message's lines.
++        var lines: (plates: [DepthSwipePlateArt], box: CGRect, parent: CALayer, above: CALayer)?
++        var textLeft: Double?
++        if let textNode = parts.textNode, isShown(textNode.layer), let parent = textNode.layer.superlayer {
++            var plates: [DepthSwipePlateArt] = []
++            var above = textNode.layer
++            if let authorNode = parts.authorNode, isShown(authorNode.layer), authorNode.layer.superlayer === parent, let plate = DepthSwipeSnapshot.plate(of: authorNode.layer, in: parent) {
++                plates.append(plate)
++                hidden.append(authorNode.layer)
++                if let sublayers = parent.sublayers, let authorIndex = sublayers.firstIndex(of: authorNode.layer), let textIndex = sublayers.firstIndex(of: textNode.layer), authorIndex > textIndex {
++                    above = authorNode.layer
++                }
++            }
++            plates.append(contentsOf: DepthSwipeSnapshot.lines(of: textNode, in: parent))
++            if !plates.isEmpty {
++                hidden.append(textNode.layer)
++                let left = plates.map(\.frame.minX).min() ?? 0.0
++                let top = plates.map(\.frame.minY).min() ?? 0.0
++                let bottom = plates.map(\.frame.maxY).max() ?? 0.0
++                // The box ends where the prototype's does (chat-list.js: W − 16 − 26), in the parent.
++                // (The content's coordinates are the row's at rest: its bounds origin carries the
++                // reveal offset, its width is the row's.)
++                let rowRight = content.convert(CGPoint(x: content.bounds.width - parts.rightInset - CGFloat(look.lines.boxRightInset), y: 0.0), to: parent).x
++                let right = max(rowRight, plates.map(\.frame.maxX).max() ?? left)
++                lines = (plates, CGRect(x: left, y: top, width: right - left, height: bottom - top), parent, above)
++                textLeft = Double(parent.convert(CGPoint(x: left, y: 0.0), to: content).x)
++            }
++        }
++
++        // The photo: its picture is the disc's face; the rest of its drawing (a story ring) is
++        // printed on the face; what sits on its edge rolls as badges, so it is left out.
++        var avatar: (art: DepthSwipeDiscArt, frame: CGRect, parent: CALayer, above: CALayer)?
++        var avatarCenter: Double?
++        var avatarHalf = 0.0
++        if let avatarNode = parts.avatarNode, isShown(avatarNode.layer), let parent = avatarNode.layer.superlayer {
++            let layer = avatarNode.layer
++            let onEdge = shownBadges.filter { isInside($0, layer) }
++            var picture: (image: CGImage, frame: CGRect)?
++            var decorations: CGImage?
++            var cornerFraction: CGFloat = 0.5
++            if let pictureLayer = parts.avatarPictureNode?.layer, isShown(pictureLayer), isInside(pictureLayer, layer) {
++                if let image = DepthSwipeSnapshot.image(of: pictureLayer) {
++                    let frame = pictureLayer.convert(pictureLayer.bounds, to: layer).offsetBy(dx: -layer.bounds.minX, dy: -layer.bounds.minY)
++                    picture = (image, frame)
++                    cornerFraction = DepthSwipeSnapshot.cornerFraction(of: pictureLayer)
++                    // Anything else the photo shows (a story ring) is printed on the face.
++                    let others = (layer.sublayers ?? []).filter { sublayer in
++                        return sublayer !== pictureLayer && !onEdge.contains(where: { $0 === sublayer }) && isShown(sublayer)
++                    }
++                    if !others.isEmpty {
++                        decorations = DepthSwipeSnapshot.image(of: layer, hiding: onEdge + [pictureLayer])
++                    }
++                }
++            } else if let image = DepthSwipeSnapshot.image(of: layer, hiding: onEdge) {
++                picture = (image, CGRect(origin: CGPoint(), size: layer.bounds.size))
++                cornerFraction = DepthSwipeSnapshot.cornerFraction(of: layer)
++            }
++            if let picture {
++                let size = layer.bounds.size
++                let cornerRadius = cornerFraction * size.height
++                let edges = self.edges(size: size, cornerRadius: cornerRadius)
++                let art = DepthSwipeDiscArt(
++                    picture: picture.image,
++                    pictureFrame: picture.frame,
++                    decorations: decorations,
++                    cornerRadius: cornerRadius,
++                    faceEdge: edges.face,
++                    backEdge: edges.back,
++                    color: DepthSwipeSnapshot.meanColor(picture.image) ?? (r: 0.35, g: 0.4, b: 0.45)
++                )
++                avatar = (art, layer.frame, parent, layer)
++                let frame = layer.convert(layer.bounds, to: content)
++                avatarCenter = Double(frame.midX)
++                avatarHalf = Double(frame.width * 0.5)
++                hidden.append(layer)
++            }
++        }
++
++        if title == nil && lines == nil && avatar == nil {
++            return false
++        }
++
++        // The badges: copies over them, measured flat.
++        let badges = shownBadges.compactMap { layer -> DepthSwipeBadgeArt? in
++            guard let image = DepthSwipeSnapshot.image(of: layer) else {
++                return nil
++            }
++            return DepthSwipeBadgeArt(original: layer, image: image)
++        }
++        let iconCenters = badges.map { Double($0.original.convert($0.original.bounds, to: content).midX) }
++        hidden.append(contentsOf: badges.map(\.original))
++
++        self.rig.updateGeometry(DepthSwipeGeometry(
++            titleX: titleX,
++            titleOrigin: titleOrigin,
++            glyphCenters: glyphCenters,
++            iconCenters: iconCenters,
++            textLeft: textLeft,
++            lineCount: lines?.plates.count ?? 0,
++            avatarCenter: avatarCenter,
++            avatarHalf: avatarHalf
++        ))
++        self.layers = DepthSwipeLayers(title: title, lines: lines, avatar: avatar, badges: badges, badgeParent: content)
++        self.hide(hidden)
++        return true
++    }
++
++    private func edges(size: CGSize, cornerRadius: CGFloat) -> (face: CGImage?, back: CGImage?) {
++        if let current = self.edgeImages, current.size == size, current.cornerRadius == cornerRadius {
++            return (current.face, current.back)
++        }
++        let face = DepthSwipeSnapshot.edgeImage(size: size, cornerRadius: cornerRadius, ringAlpha: 0.35, shadowBlur: 6.0, shadowAlpha: 0.25)
++        let back = DepthSwipeSnapshot.edgeImage(size: size, cornerRadius: cornerRadius, ringAlpha: 0.3, shadowBlur: 8.0, shadowAlpha: 0.3)
++        self.edgeImages = (size, cornerRadius, face, back)
++        return (face, back)
++    }
++
++    private func removeLayers() {
++        self.layers?.remove()
++        self.layers = nil
++        self.show()
++    }
++
++    private func hide(_ layers: [CALayer]) {
++        for layer in layers {
++            let animation = CABasicAnimation(keyPath: "hidden")
++            animation.fromValue = true as NSNumber
++            animation.toValue = true as NSNumber
++            animation.duration = 0.001
++            animation.fillMode = .both
++            animation.isRemovedOnCompletion = false
++            layer.add(animation, forKey: DepthSwipeController.hiddenAnimationKey)
++        }
++        self.hiddenLayers = layers
++    }
++
++    private func show() {
++        for layer in self.hiddenLayers {
++            layer.removeAnimation(forKey: DepthSwipeController.hiddenAnimationKey)
++        }
++        self.hiddenLayers = []
++    }
++
++    // MARK: - Per frame
++
++    private func startLink() {
++        if self.link != nil {
++            return
++        }
++        self.link = SharedDisplayLinkDriver.shared.add(framesPerSecond: .max, { [weak self] duration in
++            self?.tick(duration: Double(duration))
++        })
++    }
++
++    private func stopLink() {
++        self.link?.invalidate()
++        self.link = nil
++    }
++
++    /// The offset on screen now, if the row is animating (the reveal spring runs in Core Animation).
++    private func presentedOffset() -> CGFloat? {
++        guard let layer = self.contentNode?.layer, layer.animation(forKey: "bounds") != nil, let presentation = layer.presentation() else {
++            return nil
++        }
++        return layer.frame.minX - presentation.bounds.minX
++    }
++
++    private func tick(duration: Double) {
++        guard self.rig.isActive, let contentNode = self.contentNode, contentNode.isInHierarchy, !UIAccessibility.isReduceMotionEnabled else {
++            self.end()
++            return
++        }
++        if duration > 0.0 && duration < 0.1 {
++            self.frameDuration = duration
++        }
++        // Everything is computed for the moment this frame will be on screen.
++        let lead = self.frameDuration
++        let now = self.displayTime()
++        var x = self.targetOffset
++        var isAnimating = false
++        if let presented = self.presentedOffset() {
++            // Core Animation moves the row (its render server is a frame ahead of what the app reads):
++            // read where it is, then step ahead by one frame, no further than where it is going.
++            isAnimating = true
++            let clock = CACurrentMediaTime()
++            var speed: CGFloat = 0.0
++            if let last = self.lastPresented, clock - last.time > 1e-4 {
++                speed = (presented - last.offset) / CGFloat(clock - last.time)
++            }
++            self.lastPresented = (presented, clock)
++            let ahead = presented + speed * CGFloat(lead)
++            x = min(max(ahead, min(presented, self.targetOffset)), max(presented, self.targetOffset))
++        } else {
++            self.lastPresented = nil
++        }
++        let offset = Double(x)
++        let gestureInitialOffset = self.gestureInitialOffset()
++        if let startOffset = self.startOffset {
++            // The first frame: the velocity is measured from where the row was a frame ago.
++            self.startOffset = nil
++            self.tracker.reset(offset: startOffset, at: now, frameDuration: lead)
++        }
++        let velocity = self.tracker.frame(at: now, offset: offset)
++        let pull = DepthSwipeTracker.pull(offset: offset, gestureInitialOffset: gestureInitialOffset.map { Double($0) })
++        let moving = self.rig.update(at: now, offset: offset, velocity: velocity, pull: pull)
++        self.lastFrame = (now, offset, pull)
++        self.layers?.apply(self.rig.frame)
++
++        let still = DepthSwipeTracker.isStill(isTracking: gestureInitialOffset != nil, isAnimating: isAnimating, velocity: velocity)
++        if DepthSwipeTracker.shouldEnd(isMoving: moving, isStill: still, isRolled: self.rig.isRolled) {
++            // Settled flat: back to the flat row.
++            self.end()
++        } else if !moving && still {
++            // Settled open with pieces round the rim: the layers stay, nothing to animate.
++            self.stopLink()
++        }
++    }
++}
+diff --git a/submodules/TelegramUI/Components/ChatList/DepthSwipe/Sources/DepthSwipeLayers.swift b/submodules/TelegramUI/Components/ChatList/DepthSwipe/Sources/DepthSwipeLayers.swift
+new file mode 100644
+index 0000000..95e14ee
+--- /dev/null
++++ b/submodules/TelegramUI/Components/ChatList/DepthSwipe/Sources/DepthSwipeLayers.swift
+@@ -0,0 +1,449 @@
++import Foundation
++import UIKit
++import QuartzCore
++import Display
++
++// Depth Swipe on Core Animation — the drawing half of prototype/src/chats/depth.js: buildTitle,
++// buildLines and buildAvatar as layers, and every style update() writes as a layer property.
++//
++// CSS → Core Animation:
++//   · `perspective: 330px` on a box → its layer's sublayerTransform (m34 = −1/330), about the box's
++//     perspective origin (CA applies it about the anchor point, the centre);
++//   · `transform-style: preserve-3d` → a CATransformLayer: the extrusion copies and the disc's
++//     slices keep their depth;
++//   · a CSS transform list applies its last function first; CATransform3DConcat(a, b) applies a
++//     first — so every list is built from its last function to its first;
++//   · `transform-origin` → anchorPoint, `backface-visibility: hidden` → isDoubleSided = false,
++//     `overflow: hidden; border-radius: 50%` → masksToBounds + cornerRadius, `mask-image` → mask;
++//   · the letters, their copy in shadow and the extrusion copies are cells of one atlas
++//     (DepthSwipeTitleArt), so the whole name is one texture.
++// Only what changed since the last frame is written.
++
++private let degree = CGFloat.pi / 180.0
++
++private func perspective(about offset: CGPoint) -> CATransform3D {
++    var p = CATransform3DIdentity
++    p.m34 = -1.0 / CGFloat(DepthSwipeLook.perspective)
++    // Seen from `offset` (relative to the anchor point) instead of from the centre.
++    return CATransform3DConcat(CATransform3DConcat(CATransform3DMakeTranslation(-offset.x, -offset.y, 0.0), p), CATransform3DMakeTranslation(offset.x, offset.y, 0.0))
++}
++
++/// A flat badge of the row (verified, emoji status, muted, online…) that rolls over the rim: a copy
++/// with the badge's place, transform and opacity, on top of the row's content (the badge may sit in
++/// the photo, which the disc replaces).
++private final class DepthSwipeBadge {
++    let layer = SimpleLayer()
++    let transform: CATransform3D
++    let opacity: Float
++    var state: DepthSwipeFrame.Icon??
++
++    init(art: DepthSwipeBadgeArt, parent: CALayer) {
++        let original = art.original
++        self.transform = original.transform
++        self.opacity = original.opacity
++        self.layer.contents = art.image
++        self.layer.contentsScale = UIScreenScale
++        self.layer.bounds = CGRect(origin: CGPoint(), size: original.bounds.size)
++        self.layer.anchorPoint = original.anchorPoint
++        if let superlayer = original.superlayer {
++            self.layer.position = parent.convert(original.position, from: superlayer)
++        } else {
++            self.layer.position = original.position
++        }
++        self.layer.transform = self.transform
++        self.layer.opacity = self.opacity
++        parent.addSublayer(self.layer)
++    }
++
++    func apply(_ icon: DepthSwipeFrame.Icon?) {
++        if let state = self.state, state == icon {
++            return
++        }
++        self.state = .some(icon)
++        if let icon {
++            // perspective(P) translate3d(tx, 0, dz) rotateY(−angle), after the badge's own transform.
++            var p = CATransform3DIdentity
++            p.m34 = -1.0 / CGFloat(DepthSwipeLook.perspective)
++            var t = CATransform3DMakeRotation(-CGFloat(icon.angle) * degree, 0.0, 1.0, 0.0)
++            t = CATransform3DConcat(t, CATransform3DMakeTranslation(CGFloat(icon.tx), 0.0, CGFloat(icon.dz)))
++            t = CATransform3DConcat(t, p)
++            self.layer.transform = CATransform3DConcat(self.transform, t)
++            self.layer.opacity = self.opacity * Float(icon.opacity)
++        } else {
++            self.layer.transform = self.transform
++            self.layer.opacity = self.opacity
++        }
++    }
++}
++
++/// The name: one CATransformLayer per letter holding its extrusion copies, its face and its copy in
++/// shadow, under a layer with the name's perspective (buildTitle).
++private final class DepthSwipeTitleLayers {
++    private final class Glyph {
++        let layer = SimpleTransformLayer()
++        let face = SimpleLayer()
++        let shade = SimpleLayer()
++        var copies: [SimpleLayer] = []
++        var state: DepthSwipeFrame.Glyph?
++    }
++
++    let container = SimpleLayer()
++    private var glyphs: [Glyph] = []
++
++    init(art: DepthSwipeTitleArt, frame: CGRect) {
++        self.container.frame = frame
++        self.container.sublayerTransform = perspective(about: CGPoint())
++        let height = art.nodeSize.height
++        let title = DepthSwipeLook.title
++        for unit in art.units {
++            let glyph = Glyph()
++            glyph.layer.bounds = CGRect(x: 0.0, y: 0.0, width: unit.width, height: height)
++            glyph.layer.anchorPoint = CGPoint(x: 0.5, y: 0.55)
++            glyph.layer.position = CGPoint(x: unit.x + unit.width * 0.5, y: height * 0.55)
++            func piece(_ layer: SimpleLayer, row: Int) {
++                layer.contents = art.image
++                layer.contentsScale = UIScreenScale
++                layer.contentsRect = art.contentsRect(unit, row: row)
++                layer.frame = art.pieceFrame(unit)
++            }
++            // Back to front: copy `layers` … copy 1, the face, the face in shadow.
++            for j in stride(from: title.layers, through: 1, by: -1) {
++                let copy = SimpleLayer()
++                piece(copy, row: DepthSwipeTitleArt.copyRow(j))
++                copy.zPosition = -CGFloat(j) * CGFloat(title.depth) / CGFloat(title.layers)
++                glyph.layer.addSublayer(copy)
++                glyph.copies.append(copy)
++            }
++            piece(glyph.face, row: DepthSwipeTitleArt.faceRow)
++            glyph.layer.addSublayer(glyph.face)
++            piece(glyph.shade, row: DepthSwipeTitleArt.shadeRow)
++            glyph.shade.zPosition = 0.05
++            glyph.shade.opacity = 0.0
++            glyph.layer.addSublayer(glyph.shade)
++            self.container.addSublayer(glyph.layer)
++            self.glyphs.append(glyph)
++        }
++    }
++
++    func apply(_ states: [DepthSwipeFrame.Glyph]) {
++        for (glyph, state) in zip(self.glyphs, states) {
++            let previous = glyph.state
++            if previous == state {
++                continue
++            }
++            glyph.state = state
++            if previous?.angle != state.angle || previous?.lift != state.lift || previous?.rim != state.rim {
++                // [translate3d(tx, 0, dz) rotateY(−angle) scale3d(1, 1, depthScale)] translateZ(lift) rotateX(angle)
++                var t = CATransform3DMakeRotation(CGFloat(state.angle) * degree, 1.0, 0.0, 0.0)
++                t = CATransform3DConcat(t, CATransform3DMakeTranslation(0.0, 0.0, CGFloat(state.lift)))
++                if let rim = state.rim {
++                    t = CATransform3DConcat(t, CATransform3DMakeScale(1.0, 1.0, CGFloat(rim.depthScale)))
++                    t = CATransform3DConcat(t, CATransform3DMakeRotation(-CGFloat(rim.angle) * degree, 0.0, 1.0, 0.0))
++                    t = CATransform3DConcat(t, CATransform3DMakeTranslation(CGFloat(rim.tx), 0.0, CGFloat(rim.dz)))
++                }
++                glyph.layer.transform = t
++            }
++            if previous?.shade != state.shade {
++                glyph.shade.opacity = Float(state.shade)
++            }
++            if previous?.faceOpacity != state.faceOpacity {
++                glyph.face.opacity = Float(state.faceOpacity)
++            }
++            if previous?.layerOpacity != state.layerOpacity {
++                for copy in glyph.copies {
++                    copy.opacity = Float(state.layerOpacity)
++                }
++            }
++            if previous?.isHidden != state.isHidden {
++                glyph.layer.isHidden = state.isHidden
++            }
++        }
++    }
++}
++
++/// The message: one plate per line in a box with its own perspective; on a left swipe the box is
++/// seen from its left end and the text fades into the rim through a mask (buildLines).
++private final class DepthSwipeLinesLayers {
++    let container = SimpleLayer()
++    private var plates: [(layer: SimpleLayer, frame: CGRect)] = []
++    private var states: [DepthSwipeFrame.Line?] = []
++    private var direction: Int = 0
++    private let mask = SimpleGradientLayer()
++    private var maskState: DepthSwipeFrame.TextMask?
++
++    /// `box`: the message box in the parent layer (the plates' frames are in the same space).
++    init(plates: [DepthSwipePlateArt], box: CGRect) {
++        self.container.frame = box
++        for plate in plates {
++            let layer = SimpleLayer()
++            layer.contents = plate.image
++            layer.contentsScale = UIScreenScale
++            layer.contentsRect = plate.contentsRect
++            let frame = plate.frame.offsetBy(dx: -box.minX, dy: -box.minY)
++            layer.frame = frame
++            layer.opacity = plate.opacity
++            self.container.addSublayer(layer)
++            self.plates.append((layer, frame))
++            self.states.append(nil)
++        }
++        self.mask.startPoint = CGPoint(x: 0.0, y: 0.5)
++        self.mask.endPoint = CGPoint(x: 1.0, y: 0.5)
++        self.mask.frame = CGRect(origin: CGPoint(), size: box.size)
++    }
++
++    func apply(direction: Int, lines: [DepthSwipeFrame.Line], mask: DepthSwipeFrame.TextMask?) {
++        let size = self.container.bounds.size
++        if direction != self.direction {
++            self.direction = direction
++            // Seen from its left end on a left swipe (perspective-origin 0% 50%), else its centre.
++            self.container.sublayerTransform = perspective(about: CGPoint(x: direction < 0 ? -size.width * 0.5 : 0.0, y: 0.0))
++            // A plate turns about its right end on a left swipe (the leading left end lifts), about
++            // its left end on a right swipe — the ends of the box, as the line elements fill it.
++            let pivotX: CGFloat = direction < 0 ? size.width : 0.0
++            for plate in self.plates {
++                let frame = plate.frame
++                plate.layer.anchorPoint = CGPoint(x: frame.width > 0.0 ? (pivotX - frame.minX) / frame.width : 0.0, y: 0.5)
++                plate.layer.position = CGPoint(x: pivotX, y: frame.midY)
++            }
++        }
++        for i in 0 ..< min(lines.count, self.plates.count) {
++            let line = lines[i]
++            if self.states[i] == line {
++                continue
++            }
++            self.states[i] = line
++            self.plates[i].layer.transform = line.isFlat ? CATransform3DIdentity : CATransform3DMakeRotation(CGFloat(line.lean) * degree, 0.0, 1.0, 0.0)
++        }
++        if mask != self.maskState {
++            self.maskState = mask
++            if let mask {
++                // linear-gradient(90deg, transparent start, #000 end) over the box; stops outside the
++                // box are clamped with their colour interpolated, so the ramp is unchanged.
++                let width = max(1.0, size.width)
++                let start = CGFloat(mask.start)
++                let end = CGFloat(mask.end)
++                func alpha(_ x: CGFloat) -> CGFloat {
++                    return end > start ? max(0.0, min(1.0, (x - start) / (end - start))) : (x >= end ? 1.0 : 0.0)
++                }
++                let p0 = max(0.0, min(width, start))
++                let p1 = max(0.0, min(width, end))
++                self.mask.colors = [UIColor(white: 0.0, alpha: alpha(p0)).cgColor, UIColor(white: 0.0, alpha: alpha(p1)).cgColor]
++                self.mask.locations = [NSNumber(value: Double(p0 / width)), NSNumber(value: Double(p1 / width))]
++                if self.container.mask == nil {
++                    self.container.mask = self.mask
++                }
++            } else {
++                self.container.mask = nil
++            }
++        }
++    }
++}
++
++/// The photo as a thick disc: rim slices behind its face, the same picture on its back, the picture
++/// inset in the face (parallax), what else the photo draws (a story ring) printed on the face, a glint
++/// and the rim's shadow on top (buildAvatar).
++private final class DepthSwipeDiscLayers {
++    let container = SimpleLayer()
++    private let disc = SimpleTransformLayer()
++    private let inner = SimpleLayer()
++    private let glint = SimpleGradientLayer()
++    private let dim = SimpleLayer()
++    private let half: CGFloat
++    private let baseOpacity: Float
++    private var state: DepthSwipeFrame.Disc?
++
++    init(art: DepthSwipeDiscArt, frame: CGRect, opacity: Float) {
++        let avatar = DepthSwipeLook.avatar
++        let size = frame.size
++        let bounds = CGRect(origin: CGPoint(), size: size)
++        let radius = min(art.cornerRadius, min(size.width, size.height) * 0.5)
++        let color = art.color
++        self.half = size.width * 0.5
++        self.baseOpacity = opacity
++        self.container.frame = frame
++        self.container.opacity = opacity
++        self.container.sublayerTransform = perspective(about: CGPoint())
++        self.disc.bounds = bounds
++        self.disc.position = CGPoint(x: bounds.midX, y: bounds.midY)
++        self.container.addSublayer(self.disc)
++
++        func shade(_ k: CGFloat) -> CGColor {
++            return UIColor(red: (color.r * 255.0 * k).rounded() / 255.0, green: (color.g * 255.0 * k).rounded() / 255.0, blue: (color.b * 255.0 * k).rounded() / 255.0, alpha: 1.0).cgColor
++        }
++
++        // The back: the same picture (one photo, both sides), facing backward behind the slices.
++        let back = SimpleLayer()
++        back.frame = bounds
++        back.contents = art.picture
++        back.contentsScale = UIScreenScale
++        back.contentsGravity = .resizeAspectFill
++        back.cornerRadius = radius
++        back.masksToBounds = true
++        back.isDoubleSided = false
++        // translateZ(−depth − 0.05) rotateY(180deg)
++        back.transform = CATransform3DConcat(CATransform3DMakeRotation(CGFloat.pi, 0.0, 1.0, 0.0), CATransform3DMakeTranslation(0.0, 0.0, -CGFloat(avatar.depth) - 0.05))
++        if let edge = art.backEdge {
++            let backShade = SimpleLayer()
++            backShade.frame = bounds
++            backShade.contents = edge
++            backShade.contentsScale = UIScreenScale
++            back.addSublayer(backShade)
++        }
++        self.disc.addSublayer(back)
++
++        // The rim: slices behind the face, lit next to it.
++        for j in stride(from: avatar.layers, through: 1, by: -1) {
++            let slice = SimpleLayer()
++            slice.frame = bounds
++            slice.cornerRadius = radius
++            let lit = 0.55 + 0.25 * (1.0 - CGFloat(j) / CGFloat(avatar.layers))
++            slice.backgroundColor = shade(lit)
++            slice.zPosition = -CGFloat(j) * CGFloat(avatar.depth) / CGFloat(avatar.layers)
++            self.disc.addSublayer(slice)
++        }
++
++        // The face.
++        let face = SimpleLayer()
++        face.frame = bounds
++        face.cornerRadius = radius
++        face.masksToBounds = true
++        face.isDoubleSided = false
++        self.inner.frame = art.pictureFrame
++        self.inner.contents = art.picture
++        self.inner.contentsScale = UIScreenScale
++        self.inner.contentsGravity = .resizeAspectFill
++        face.addSublayer(self.inner)
++        if let decorations = art.decorations {
++            let printed = SimpleLayer()
++            printed.frame = bounds
++            printed.contents = decorations
++            printed.contentsScale = UIScreenScale
++            face.addSublayer(printed)
++        }
++        if let edge = art.faceEdge {
++            let rim = SimpleLayer()
++            rim.frame = bounds
++            rim.contents = edge
++            rim.contentsScale = UIScreenScale
++            face.addSublayer(rim)
++        }
++        // linear-gradient(105deg, transparent 38%, white 55% at 50%, transparent 62%) on a box 30 %
++        // larger on every side.
++        self.glint.frame = bounds.insetBy(dx: -size.width * 0.3, dy: -size.height * 0.3)
++        let angle = 105.0 * degree
++        let direction = CGPoint(x: sin(angle), y: -cos(angle))
++        let length = abs(direction.x) + abs(direction.y)
++        self.glint.startPoint = CGPoint(x: 0.5 - direction.x * length * 0.5, y: 0.5 - direction.y * length * 0.5)
++        self.glint.endPoint = CGPoint(x: 0.5 + direction.x * length * 0.5, y: 0.5 + direction.y * length * 0.5)
++        self.glint.colors = [UIColor(white: 1.0, alpha: 0.0).cgColor, UIColor(white: 1.0, alpha: 0.55).cgColor, UIColor(white: 1.0, alpha: 0.0).cgColor]
++        self.glint.locations = [0.38, 0.5, 0.62]
++        self.glint.opacity = 0.0
++        face.addSublayer(self.glint)
++        self.dim.frame = bounds
++        self.dim.cornerRadius = radius
++        self.dim.backgroundColor = UIColor.black.cgColor
++        self.dim.opacity = 0.0
++        face.addSublayer(self.dim)
++        self.disc.addSublayer(face)
++    }
++
++    func apply(_ state: DepthSwipeFrame.Disc) {
++        let previous = self.state
++        if previous == state {
++            return
++        }
++        self.state = state
++        if previous?.perspectiveOriginX != state.perspectiveOriginX {
++            // Seen from straight in front of where it is (on the rim too).
++            let originX = state.perspectiveOriginX.map { CGFloat($0) - self.half } ?? 0.0
++            self.container.sublayerTransform = perspective(about: CGPoint(x: originX, y: 0.0))
++        }
++        // translate3d(dx, 0, z) rotateY(angle)
++        self.disc.transform = CATransform3DConcat(CATransform3DMakeRotation(CGFloat(state.angle) * degree, 0.0, 1.0, 0.0), CATransform3DMakeTranslation(CGFloat(state.dx), 0.0, CGFloat(state.z)))
++        // The picture sits deeper than the rim: it slides against the tilt (translateX scale(1.14)).
++        // The prototype zooms it to 1.14 on the first frame; here the zoom comes in with the tilt
++        // (all of it from a third of the way), so the flat photo hands over without a jump.
++        let tilt = abs(state.parallax) / DepthSwipeLook.avatar.parallax
++        let zoom = 1.0 + 0.14 * CGFloat(min(1.0, tilt * 3.0))
++        self.inner.transform = CATransform3DConcat(CATransform3DMakeScale(zoom, zoom, 1.0), CATransform3DMakeTranslation(CGFloat(state.parallax), 0.0, 0.0))
++        self.glint.transform = CATransform3DMakeTranslation(CGFloat(state.glint) * 0.01 * self.glint.bounds.width, 0.0, 0.0)
++        self.glint.opacity = Float(state.glintOpacity)
++        self.dim.opacity = Float(state.dim)
++        // Faded on the photo's box, not on the disc: opacity there would flatten its rim.
++        self.container.opacity = self.baseOpacity * Float(state.opacity)
++        self.container.isHidden = state.isHidden
++    }
++}
++
++/// Everything the rig puts over the row while it runs; removed in one go when it ends.
++final class DepthSwipeLayers {
++    private let title: DepthSwipeTitleLayers?
++    private let lines: DepthSwipeLinesLayers?
++    private let disc: DepthSwipeDiscLayers?
++    private let badges: [DepthSwipeBadge]
++
++    /// title: the name's atlas and its frame in its parent, placed right above the flat name;
++    /// lines: the message's plates and the message box in their parent;
++    /// avatar: the photo's pictures, its frame in its parent; badges: copies put on `badgeParent`.
++    init(
++        title: (art: DepthSwipeTitleArt, frame: CGRect, parent: CALayer, above: CALayer)?,
++        lines: (plates: [DepthSwipePlateArt], box: CGRect, parent: CALayer, above: CALayer)?,
++        avatar: (art: DepthSwipeDiscArt, frame: CGRect, parent: CALayer, above: CALayer)?,
++        badges: [DepthSwipeBadgeArt],
++        badgeParent: CALayer
++    ) {
++        CATransaction.begin()
++        CATransaction.setDisableActions(true)
++        if let title {
++            let layers = DepthSwipeTitleLayers(art: title.art, frame: title.frame)
++            layers.container.opacity = title.above.opacity
++            title.parent.insertSublayer(layers.container, above: title.above)
++            self.title = layers
++        } else {
++            self.title = nil
++        }
++        if let lines, !lines.plates.isEmpty {
++            let layers = DepthSwipeLinesLayers(plates: lines.plates, box: lines.box)
++            lines.parent.insertSublayer(layers.container, above: lines.above)
++            self.lines = layers
++        } else {
++            self.lines = nil
++        }
++        if let avatar {
++            let layers = DepthSwipeDiscLayers(art: avatar.art, frame: avatar.frame, opacity: avatar.above.opacity)
++            avatar.parent.insertSublayer(layers.container, above: avatar.above)
++            self.disc = layers
++        } else {
++            self.disc = nil
++        }
++        self.badges = badges.map { DepthSwipeBadge(art: $0, parent: badgeParent) }
++        CATransaction.commit()
++    }
++
++    func apply(_ frame: DepthSwipeFrame) {
++        CATransaction.begin()
++        CATransaction.setDisableActions(true)
++        self.title?.apply(frame.glyphs)
++        self.lines?.apply(direction: frame.direction, lines: frame.lines, mask: frame.textMask)
++        if let disc = frame.disc {
++            self.disc?.apply(disc)
++        }
++        for (badge, icon) in zip(self.badges, frame.icons) {
++            badge.apply(icon)
++        }
++        CATransaction.commit()
++    }
++
++    /// Back to the flat row: the rig's layers go.
++    func remove() {
++        CATransaction.begin()
++        CATransaction.setDisableActions(true)
++        self.title?.container.removeFromSuperlayer()
++        self.lines?.container.removeFromSuperlayer()
++        self.disc?.container.removeFromSuperlayer()
++        for badge in self.badges {
++            badge.layer.removeFromSuperlayer()
++        }
++        CATransaction.commit()
++    }
++}
+diff --git a/submodules/TelegramUI/Components/ChatList/DepthSwipe/Sources/DepthSwipeRig.swift b/submodules/TelegramUI/Components/ChatList/DepthSwipe/Sources/DepthSwipeRig.swift
+new file mode 100644
+index 0000000..f031c0f
+--- /dev/null
++++ b/submodules/TelegramUI/Components/ChatList/DepthSwipe/Sources/DepthSwipeRig.swift
+@@ -0,0 +1,548 @@
++import Foundation
++
++// Depth Swipe — the Swift twin of prototype/src/chats/depth.js (DepthLook, DepthRig.update).
++//
++// Pull a chat and it comes off the surface in 3D:
++//   · the name becomes extruded 3D type whose letters roll back on their own axis, like the reels
++//     of Telegram's rolling counters, in a wave that starts on the side the row moves toward; their
++//     widths never change, so the name stays in one piece;
++//   · each line of the message leans as one rigid plate, its leading end lifting, a beat later;
++//   · the photo becomes a thick disc that tilts with the pull, the picture sitting deeper than its
++//     rim (parallax) and a glint crossing it;
++//   · swiped to the left, nothing is cut off by the screen edge: the edge is the rounded rim of the
++//     surface, and the disc, then the name letter by letter, roll over it into the depth and back
++//     out when the row closes. The message text fades into the rim;
++//   · the full-swipe moment (the haptic) spins the letters once, reel by reel, and flips the disc
++//     like a coin.
++// When the row settles everything rolls back flat and the flat text takes over again.
++//
++// This file is the maths only: plain values per frame (DepthSwipeFrame), no UIKit. CI replays the
++// web rig's golden frames through it (ios/Standalone/DepthSwipeCore). DepthSwipeLayers draws them.
++
++/// `DepthLook`: every constant of the look, as in depth.js.
++public enum DepthSwipeLook {
++    public struct Title {
++        /// Degrees the letters roll back at full speed, and while the finger holds the row.
++        public let roll: Double
++        public let hold: Double
++        /// pt toward the viewer while a letter is rolled (it lifts off the surface).
++        public let lift: Double
++        /// The extrusion: `layers` copies spread over `depth` pt behind the face.
++        public let depth: Double
++        public let layers: Int
++        /// Seconds between neighbouring letters in the wave.
++        public let stagger: Double
++        /// Darkening of a face rolled edge-on (opacity of its copy in shadow).
++        public let shade: Double
++        public let spring: DepthSwipeSpring
++    }
++
++    public struct Lines {
++        /// Degrees a line leans at full speed, and while the finger holds the row.
++        public let lean: Double
++        public let hold: Double
++        public let lift: Double
++        /// Seconds the first line follows the motion late, and between lines.
++        public let delay: Double
++        public let stagger: Double
++        public let spring: DepthSwipeSpring
++        /// The message box ends here, from the row's right edge (chat-list.js: rightInset 16 + 26):
++        /// a plate turns about this end on a left swipe.
++        public let boxRightInset: Double
++    }
++
++    public struct Avatar {
++        public let lean: Double
++        public let hold: Double
++        public let lift: Double
++        /// The disc's thickness: `layers` rim slices over `depth` pt.
++        public let depth: Double
++        public let layers: Int
++        public let delay: Double
++        public let spring: DepthSwipeSpring
++        /// pt the picture slides against the tilt (it sits deeper than the rim).
++        public let parallax: Double
++    }
++
++    /// Left swipes: the rim at the screen's left edge. A piece whose flat centre has gone d pt past
++    /// the hinge line is d / radius rad round it (on screen at hinge − radius·sin, radius·(1 − cos)
++    /// deep); it fades out between fade.start and fade.end degrees and is gone behind the rim after.
++    public struct Edge {
++        public let hinge: Double
++        public let radius: Double
++        public let shade: Double
++        public let fadeStart: Double
++        public let fadeEnd: Double
++    }
++
++    /// The full-swipe moment.
++    public struct Spin {
++        public let duration: Double
++        public let stagger: Double
++    }
++
++    /// pt/s: the motion lean is max · tanh(|v| / v0).
++    public static let v0: Double = 620.0
++    /// pt of pull for most of the "tension" lean while the finger holds the row.
++    public static let holdDistance: Double = 60.0
++    /// The perspective of the name, the message box and the disc (CSS `perspective: 330px`).
++    public static let perspective: Double = 330.0
++    public static let title = Title(roll: 40.0, hold: 18.0, lift: 4.0, depth: 6.0, layers: 7, stagger: 0.022, shade: 0.4, spring: DepthSwipeSpring(response: 0.17, dampingFraction: 0.5))
++    public static let lines = Lines(lean: 18.0, hold: 8.0, lift: 0.0, delay: 0.03, stagger: 0.035, spring: DepthSwipeSpring(response: 0.22, dampingFraction: 0.58), boxRightInset: 42.0)
++    public static let avatar = Avatar(lean: 48.0, hold: 22.0, lift: 7.0, depth: 6.0, layers: 6, delay: 0.008, spring: DepthSwipeSpring(response: 0.22, dampingFraction: 0.58), parallax: 7.0)
++    public static let edge = Edge(hinge: 36.0, radius: 34.0, shade: 0.5, fadeStart: 62.0, fadeEnd: 90.0)
++    public static let spin = Spin(duration: 0.56, stagger: 0.03)
++
++    /// Angles are springs in degrees: at rest within 0.02° (SpringValue's default is for points).
++    static let angleEpsilon: Double = 0.02
++}
++
++/// Where the row's pieces sit, flat, with the row at rest — in row points (x = 0 is the row's left
++/// edge, which is the screen's left edge in the chat list). buildTitle / buildLines / buildAvatar
++/// measure the same things in depth.js.
++public struct DepthSwipeGeometry: Equatable {
++    /// The name's left edge in the row (`titleX`).
++    public var titleX: Double
++    /// Half the name's width: the perspective origin of its letters (`titleOrigin`).
++    public var titleOrigin: Double
++    /// Each letter's centre within the name (`glyphs[].cx`).
++    public var glyphCenters: [Double]
++    /// The badges after the name (verified, emoji status, muted…), centres in the row (`icons[].cx`).
++    public var iconCenters: [Double]
++    /// The message box's left edge in the row (`box.offsetLeft`); nil without a message.
++    public var textLeft: Double?
++    /// Lines of the message, the author's line first in groups.
++    public var lineCount: Int
++    /// The photo's centre in the row and half its width (`avatar.cx`, `avatar.half`); nil without one.
++    public var avatarCenter: Double?
++    public var avatarHalf: Double
++
++    public init(titleX: Double, titleOrigin: Double, glyphCenters: [Double], iconCenters: [Double], textLeft: Double?, lineCount: Int, avatarCenter: Double?, avatarHalf: Double) {
++        self.titleX = titleX
++        self.titleOrigin = titleOrigin
++        self.glyphCenters = glyphCenters
++        self.iconCenters = iconCenters
++        self.textLeft = textLeft
++        self.lineCount = lineCount
++        self.avatarCenter = avatarCenter
++        self.avatarHalf = avatarHalf
++    }
++}
++
++/// One frame of the rig: every transform and opacity depth.js writes, as numbers.
++public struct DepthSwipeFrame {
++    /// Round the rim (left swipes): `translate3d(tx, 0, dz) rotateY(−angle) scale3d(1, 1, depthScale)`.
++    public struct Rim: Equatable {
++        public var tx: Double
++        public var dz: Double
++        /// Degrees round the rim (0 flat … 90 edge-on … behind it).
++        public var angle: Double
++        /// The letter's depth flattens as it turns, so its side never outgrows it.
++        public var depthScale: Double
++    }
++
++    /// A letter: `[rim] translateZ(lift) rotateX(angle)` about (50 %, 55 %) of its box.
++    public struct Glyph: Equatable {
++        /// The roll spring (degrees, before the spin and the rim).
++        public var roll: Double
++        public var angle: Double
++        public var lift: Double
++        public var rim: Rim?
++        /// Opacity of the face's copy in shadow.
++        public var shade: Double
++        public var faceOpacity: Double
++        /// Opacity of the extrusion copies.
++        public var layerOpacity: Double
++        public var isHidden: Bool
++    }
++
++    /// A badge after the name round the rim: `perspective(P) translate3d(tx, 0, dz) rotateY(−angle)`.
++    public struct Icon: Equatable {
++        public var tx: Double
++        public var dz: Double
++        public var angle: Double
++        public var opacity: Double
++    }
++
++    /// A message line: `rotateY(lean)` about its leading end's opposite end; flat below 0.05°.
++    public struct Line: Equatable {
++        public var lean: Double
++        public var isFlat: Bool
++    }
++
++    /// The message fades into the rim: transparent at `start`, opaque from `end` (box points).
++    public struct TextMask: Equatable {
++        public var start: Double
++        public var end: Double
++    }
++
++    /// The disc: `translate3d(dx, 0, z) rotateY(angle)`, seen from straight in front of where it is.
++    public struct Disc: Equatable {
++        /// The lean spring (degrees).
++        public var lean: Double
++        public var angle: Double
++        public var dx: Double
++        public var z: Double
++        /// The perspective origin's x in the photo's box while it is round the rim (else its centre).
++        public var perspectiveOriginX: Double?
++        /// pt the picture slides (`translateX(parallax) scale(1.14)`).
++        public var parallax: Double
++        /// The glint's shift in % of its own width, and its opacity.
++        public var glint: Double
++        public var glintOpacity: Double
++        /// Black over the face as it turns away from the light on the rim.
++        public var dim: Double
++        /// The photo's box fades on the rim (not the disc: opacity there would flatten its rim).
++        public var opacity: Double
++        public var isHidden: Bool
++    }
++
++    /// −1: the row moves left (the wave starts at the name's left end), 1: right.
++    public var direction: Int = -1
++    public var glyphs: [Glyph] = []
++    public var icons: [Icon?] = []
++    public var textMask: TextMask?
++    public var lines: [Line] = []
++    public var disc: Disc?
++    /// Anything round the rim: the rig stays while the row rests like that.
++    public var isRolled: Bool = false
++    /// Anything still moving (springs or the spin).
++    public var isMoving: Bool = false
++}
++
++private let degree = Double.pi / 180.0
++private let halfTurn = Double.pi / 2.0
++
++private func clamp(_ x: Double, _ a: Double = 0.0, _ b: Double = 1.0) -> Double {
++    return max(a, min(b, x))
++}
++
++private func smooth(_ a: Double, _ b: Double, _ x: Double) -> Double {
++    let t = clamp((x - a) / (b - a))
++    return t * t * (3.0 - 2.0 * t)
++}
++
++private func ease(_ u: Double) -> Double {
++    return u < 0.5 ? 4.0 * u * u * u : 1.0 - pow(-2.0 * u + 2.0, 3.0) / 2.0
++}
++
++/// `DepthRig` without the DOM: begin / end / spin / update(now, x, v, pull).
++public final class DepthSwipeRig {
++    public private(set) var isActive: Bool = false
++    public private(set) var geometry: DepthSwipeGeometry
++    /// The last frame update(at:…) computed.
++    public private(set) var frame = DepthSwipeFrame()
++
++    private struct Sample {
++        let t: Double
++        let v: Double
++        let x: Double
++    }
++
++    private var samples: [Sample] = []
++    private var spinStart: Double?
++    private var rolls: [DepthSwipeSpringValue] = []
++    private var leans: [DepthSwipeSpringValue] = []
++    private var discLean: DepthSwipeSpringValue?
++
++    public init(geometry: DepthSwipeGeometry) {
++        self.geometry = geometry
++    }
++
++    public var isRolled: Bool {
++        return self.frame.isRolled
++    }
++
++    private static func angleSpring(_ spring: DepthSwipeSpring) -> DepthSwipeSpringValue {
++        let value = DepthSwipeSpringValue(0.0, spring: spring)
++        value.epsilon = DepthSwipeLook.angleEpsilon
++        return value
++    }
++
++    /// Starts flat; while it runs a new move carries on from where it is.
++    public func begin(at now: Double) {
++        if self.isActive {
++            return
++        }
++        self.isActive = true
++        self.samples = []
++        self.spinStart = nil
++        self.rolls = self.geometry.glyphCenters.map { _ in DepthSwipeRig.angleSpring(DepthSwipeLook.title.spring) }
++        self.leans = (0 ..< self.geometry.lineCount).map { _ in DepthSwipeRig.angleSpring(DepthSwipeLook.lines.spring) }
++        self.discLean = self.geometry.avatarCenter != nil ? DepthSwipeRig.angleSpring(DepthSwipeLook.avatar.spring) : nil
++        self.frame = DepthSwipeFrame()
++    }
++
++    /// Back to flat (call once update(at:…) has settled).
++    public func end() {
++        if !self.isActive {
++            return
++        }
++        self.isActive = false
++        self.samples = []
++        self.spinStart = nil
++        self.rolls = []
++        self.leans = []
++        self.discLean = nil
++        self.frame = DepthSwipeFrame()
++    }
++
++    /// The row's content was laid out again while the rig runs: new pieces, same motion. Springs
++    /// carry over by index (a letter added at the end takes its neighbour's state).
++    public func updateGeometry(_ geometry: DepthSwipeGeometry) {
++        if self.isActive {
++            func carried(_ old: [DepthSwipeSpringValue], count: Int, spring: DepthSwipeSpring) -> [DepthSwipeSpringValue] {
++                return (0 ..< count).map { i in
++                    if i < old.count {
++                        return old[i]
++                    }
++                    let value = DepthSwipeRig.angleSpring(spring)
++                    if let last = old.last {
++                        value.set(last.value, at: 0.0)
++                    }
++                    return value
++                }
++            }
++            self.rolls = carried(self.rolls, count: geometry.glyphCenters.count, spring: DepthSwipeLook.title.spring)
++            self.leans = carried(self.leans, count: geometry.lineCount, spring: DepthSwipeLook.lines.spring)
++            if geometry.avatarCenter == nil {
++                self.discLean = nil
++            } else if self.discLean == nil {
++                self.discLean = DepthSwipeRig.angleSpring(DepthSwipeLook.avatar.spring)
++            }
++        }
++        self.geometry = geometry
++    }
++
++    // MARK: - The full-swipe moment
++
++    /// `direction`: +1 / −1, the way the row is going.
++    public func spin(at now: Double, direction: Int) {
++        if !self.isActive {
++            return
++        }
++        self.spinStart = now
++    }
++
++    func spinAngle(at now: Double, order: Double) -> Double {
++        guard let spinStart = self.spinStart else {
++            return 0.0
++        }
++        let spin = DepthSwipeLook.spin
++        return 360.0 * ease(clamp((now - spinStart - order * spin.stagger) / spin.duration))
++    }
++
++    public func isSpinning(at now: Double) -> Bool {
++        guard let spinStart = self.spinStart else {
++            return false
++        }
++        return now - spinStart < DepthSwipeLook.spin.duration + DepthSwipeLook.spin.stagger * Double(self.rolls.count + 4)
++    }
++
++    // MARK: - Per frame
++
++    /// The row's velocity at time t (linear between samples).
++    private func sampledVelocity(at t: Double) -> Double {
++        let s = self.samples
++        guard let last = s.last else {
++            return 0.0
++        }
++        if t >= last.t {
++            return last.v
++        }
++        var i = s.count - 1
++        while i > 0 {
++            if s[i - 1].t <= t {
++                let a = s[i - 1]
++                let b = s[i]
++                let u = (t - a.t) / max(1e-6, b.t - a.t)
++                return a.v + (b.v - a.v) * u
++            }
++            i -= 1
++        }
++        return s[0].v
++    }
++
++    private struct RimPlace {
++        let th: Double
++        let deg: Double
++        let r: Double
++        let dx: Double
++        let dz: Double
++        let lit: Double
++        let fade: Double
++    }
++
++    /// The rim (left swipes): how far round it a piece whose flat centre is at X (screen pt) is,
++    /// where it shows, how lit it is and how much of it is left.
++    private static func rim(_ x: Double) -> RimPlace? {
++        let edge = DepthSwipeLook.edge
++        let th = max(0.0, (edge.hinge - x) / edge.radius)
++        if th <= 0.0 {
++            return nil
++        }
++        let c = min(th, halfTurn)
++        let deg = th / degree
++        return RimPlace(
++            th: th,
++            deg: deg,
++            r: min(1.0, th / halfTurn),
++            dx: edge.hinge - edge.radius * sin(c) - x,
++            dz: -edge.radius * (1.0 - cos(c)),
++            lit: 1.0 - cos(c),
++            fade: 1.0 - smooth(edge.fadeStart, edge.fadeEnd, deg)
++        )
++    }
++
++    /// x: the row's offset (pt, + = right), v: its velocity (pt/s), pull: how far the finger has
++    /// pulled it since it touched (pt, 0 once let go). Returns true while anything moves.
++    @discardableResult
++    public func update(at now: Double, offset x: Double, velocity v: Double, pull: Double = 0.0) -> Bool {
++        if !self.isActive {
++            return false
++        }
++        self.samples.append(Sample(t: now, v: v, x: x))
++        while self.samples.count > 2 && self.samples[0].t < now - 0.6 {
++            self.samples.removeFirst()
++        }
++        let look = DepthSwipeLook.self
++        let edge = look.edge
++        // The side the row moves toward.
++        let dir: Int
++        if x < -0.5 {
++            dir = -1
++        } else if x > 0.5 {
++            dir = 1
++        } else if v > 0.0 {
++            dir = 1
++        } else {
++            dir = -1
++        }
++        let tension = abs(tanh(pull / look.holdDistance))
++        let motion: (Double) -> Double = { t in
++            return tanh(abs(self.sampledVelocity(at: t)) / look.v0)
++        }
++        var moving = false
++        // Advance to now, then retarget (velocity carried over); a target that stays put lets the
++        // spring come to rest.
++        func step(_ value: DepthSwipeSpringValue, _ target: Double) -> Double {
++            value.update(at: now)
++            if abs(target - value.target) > 0.01 {
++                value.animate(to: target, at: now)
++            }
++            if !value.isSettled {
++                moving = true
++            }
++            return value.value
++        }
++        var rolled = false
++        func rimAt(_ position: Double) -> RimPlace? {
++            let place = DepthSwipeRig.rim(position)
++            if place != nil {
++                rolled = true
++            }
++            return place
++        }
++
++        var frame = DepthSwipeFrame()
++        frame.direction = dir
++
++        // The name: letters roll back (top away, into the surface), the wave from the leading side;
++        // at the rim each one turns round it.
++        let title = look.title
++        let n = self.rolls.count
++        let perspective = look.perspective
++        let origin = self.geometry.titleOrigin
++        frame.glyphs.reserveCapacity(n)
++        for i in 0 ..< n {
++            let cx = self.geometry.glyphCenters[i]
++            let order = dir < 0 ? i : n - 1 - i
++            let t0 = now - Double(order) * title.stagger
++            let roll = step(self.rolls[i], title.roll * motion(t0) + title.hold * tension)
++            let place = rimAt(self.geometry.titleX + cx + x)
++            let k = place.map { 1.0 - $0.r } ?? 1.0
++            let a = (roll + self.spinAngle(at: now, order: Double(order))) * k
++            let lift = title.lift * min(1.0, abs(sin(a * degree)) * 1.4) * k
++            var rim: DepthSwipeFrame.Rim?
++            if let place {
++                // Placed so that, seen through the name's perspective, it lands on the rim. Its
++                // depth flattens as it turns, so the side never outgrows the letter.
++                let tx = origin + (cx + place.dx - origin) * (perspective - place.dz) / perspective - cx
++                let kz = 1.0 - 0.85 * place.r
++                rim = DepthSwipeFrame.Rim(tx: tx, dz: place.dz, angle: place.deg, depthScale: kz)
++            }
++            let shade = max(title.shade * (1.0 - abs(cos(a * degree))), place.map { edge.shade * $0.lit } ?? 0.0)
++            let fade = place?.fade ?? 1.0
++            // Near edge-on it fades (layer by layer, so the letter keeps its depth) and then it's
++            // behind; its sides fade a little as it turns, so the face stays the letter.
++            frame.glyphs.append(DepthSwipeFrame.Glyph(
++                roll: roll,
++                angle: a,
++                lift: lift,
++                rim: rim,
++                shade: shade * fade,
++                faceOpacity: fade >= 0.999 ? 1.0 : fade,
++                layerOpacity: place.map { fade * (1.0 - 0.6 * $0.r) } ?? 1.0,
++                isHidden: fade <= 0.001
++            ))
++        }
++
++        // The badges after the name (verified, muted): flat pieces on the same rim.
++        frame.icons = self.geometry.iconCenters.map { cx -> DepthSwipeFrame.Icon? in
++            guard let place = rimAt(cx + x) else {
++                return nil
++            }
++            let tx = place.dx * (perspective - place.dz) / perspective
++            return DepthSwipeFrame.Icon(tx: tx, dz: place.dz, angle: place.deg, opacity: place.fade >= 0.999 ? 1.0 : place.fade)
++        }
++
++        // The message: its text fades into the rim (a mask over the box, in its own coordinates).
++        if let textLeft = self.geometry.textLeft {
++            let left = textLeft + x
++            if left < edge.hinge {
++                frame.textMask = DepthSwipeFrame.TextMask(start: edge.hinge - edge.radius * 0.92 - left, end: edge.hinge - left)
++                rolled = true
++            }
++        }
++
++        // The message lines: rigid plates, the leading end lifting, line 2 after line 1. Seen from
++        // their left end on a left swipe (they lift there without spreading over the photo).
++        let lines = look.lines
++        frame.lines = self.leans.enumerated().map { i, value in
++            let lean = step(value, (lines.lean * motion(now - lines.delay - Double(i) * lines.stagger) + lines.hold * tension) * Double(-dir))
++            return DepthSwipeFrame.Line(lean: lean, isFlat: abs(lean) < 0.05)
++        }
++
++        // The disc: heavier (lags a little more). On a left swipe it rolls over the rim: its lean
++        // hands over to the turn round the rim, following the position directly.
++        if let discLean = self.discLean, let center = self.geometry.avatarCenter {
++            let avatar = look.avatar
++            let lean = step(discLean, (avatar.lean * motion(now - avatar.delay) + avatar.hold * tension) * Double(dir))
++            let place = rimAt(center + x)
++            let k = place.map { 1.0 - $0.r } ?? 1.0
++            let a = lean * k - (place?.deg ?? 0.0) + self.spinAngle(at: now, order: -3.0) * Double(-dir)
++            let s = sin(a * degree)
++            let lift = avatar.lift * min(1.0, abs(s) * 1.3) * k
++            let dx = place?.dx ?? 0.0
++            frame.disc = DepthSwipeFrame.Disc(
++                lean: lean,
++                angle: a,
++                dx: dx,
++                z: (place?.dz ?? 0.0) + lift,
++                perspectiveOriginX: place != nil ? self.geometry.avatarHalf + dx : nil,
++                parallax: -avatar.parallax * s,
++                glint: s * 34.0,
++                glintOpacity: min(1.0, abs(s) * 1.6) * (place?.fade ?? 1.0),
++                dim: place.map { edge.shade * $0.lit } ?? 0.0,
++                opacity: place.map { $0.fade < 0.999 ? $0.fade : 1.0 } ?? 1.0,
++                isHidden: place.map { $0.fade <= 0.001 } ?? false
++            )
++        }
++
++        // While anything is round the rim the rig stays (the row may rest open like that).
++        frame.isRolled = rolled
++        frame.isMoving = moving || self.isSpinning(at: now)
++        self.frame = frame
++        return frame.isMoving
++    }
++}
+diff --git a/submodules/TelegramUI/Components/ChatList/DepthSwipe/Sources/DepthSwipeSpring.swift b/submodules/TelegramUI/Components/ChatList/DepthSwipe/Sources/DepthSwipeSpring.swift
+new file mode 100644
+index 0000000..7b86c8c
+--- /dev/null
++++ b/submodules/TelegramUI/Components/ChatList/DepthSwipe/Sources/DepthSwipeSpring.swift
+@@ -0,0 +1,136 @@
++import Foundation
++
++// Depth Swipe springs — the Swift twin of prototype/src/core/spring.js.
++//
++// A closed-form damped harmonic oscillator, the same model as CASpringAnimation
++// (m·x'' + c·x' + k·x = 0). It is evaluated analytically from the moment a value was (re)targeted,
++// so it does not depend on the frame rate: a 60 Hz device, a 120 Hz ProMotion device and the golden
++// recordings (tools/golden-depth.mjs) give the same curve.
++//
++// Velocity hand-off: retargeting keeps the current value and velocity, as UIKit's interruptible
++// springs do.
++
++/// Spring parameters (`SpringParams`).
++public struct DepthSwipeSpring: Equatable {
++    public var mass: Double
++    public var stiffness: Double
++    public var damping: Double
++
++    public init(mass: Double, stiffness: Double, damping: Double) {
++        self.mass = mass
++        self.stiffness = stiffness
++        self.damping = damping
++    }
++
++    /// `SpringParams.fromResponse`: response in seconds and a damping fraction, as SwiftUI and
++    /// `UISpringTimingParameters` describe springs.
++    public init(response: Double, dampingFraction: Double, mass: Double = 1.0) {
++        let omega = (2.0 * Double.pi) / response
++        let stiffness = omega * omega * mass
++        self.mass = mass
++        self.stiffness = stiffness
++        self.damping = 2.0 * dampingFraction * (stiffness * mass).squareRoot()
++    }
++
++    var omega0: Double {
++        return (self.stiffness / self.mass).squareRoot()
++    }
++
++    var zeta: Double {
++        return self.damping / (2.0 * (self.stiffness * self.mass).squareRoot())
++    }
++
++    /// `solveSpring`: displacement (current − target) and velocity `t` seconds after starting at
++    /// displacement `x0` with velocity `v0`.
++    public func solve(x0: Double, v0: Double, t: Double) -> (x: Double, v: Double) {
++        let w0 = self.omega0
++        let z = self.zeta
++        if z < 1.0 - 1e-6 {
++            let wd = w0 * (1.0 - z * z).squareRoot()
++            let e = exp(-z * w0 * t)
++            let a = x0
++            let b = (v0 + z * w0 * x0) / wd
++            let c = cos(wd * t)
++            let s = sin(wd * t)
++            let x = e * (a * c + b * s)
++            let v = e * ((-z * w0) * (a * c + b * s) + (-a * wd * s + b * wd * c))
++            return (x, v)
++        } else if z > 1.0 + 1e-6 {
++            let sq = (z * z - 1.0).squareRoot()
++            let r1 = -w0 * (z - sq)
++            let r2 = -w0 * (z + sq)
++            let a = (v0 - r2 * x0) / (r1 - r2)
++            let b = x0 - a
++            let e1 = exp(r1 * t)
++            let e2 = exp(r2 * t)
++            return (a * e1 + b * e2, a * r1 * e1 + b * r2 * e2)
++        } else {
++            let e = exp(-w0 * t)
++            let b = v0 + w0 * x0
++            return (e * (x0 + b * t), e * (b - w0 * (x0 + b * t)))
++        }
++    }
++}
++
++/// A scalar driven by a spring (`SpringValue`): `animate` retargets it with velocity hand-off,
++/// `update` advances it to a time.
++public final class DepthSwipeSpringValue {
++    public private(set) var target: Double
++    public private(set) var value: Double
++    public private(set) var velocity: Double = 0.0
++    public private(set) var isSettled: Bool = true
++    /// At rest when |x| < epsilon and |v| < 10·epsilon (after 30 ms).
++    public var epsilon: Double = 5e-4
++
++    private var spring: DepthSwipeSpring
++    private var x0: Double = 0.0
++    private var v0: Double = 0.0
++    private var t0: Double = 0.0
++
++    public init(_ value: Double, spring: DepthSwipeSpring) {
++        self.target = value
++        self.value = value
++        self.spring = spring
++    }
++
++    public func set(_ value: Double, at time: Double) {
++        self.target = value
++        self.x0 = 0.0
++        self.v0 = 0.0
++        self.t0 = time
++        self.value = value
++        self.velocity = 0.0
++        self.isSettled = true
++    }
++
++    public func animate(to target: Double, at time: Double, spring: DepthSwipeSpring? = nil, velocity: Double? = nil) {
++        self.update(at: time)
++        let v = velocity ?? self.velocity
++        if let spring {
++            self.spring = spring
++        }
++        self.target = target
++        self.x0 = self.value - target
++        self.v0 = v
++        self.t0 = time
++        self.isSettled = false
++    }
++
++    @discardableResult
++    public func update(at time: Double) -> Double {
++        if self.isSettled {
++            return self.value
++        }
++        let t = max(0.0, time - self.t0)
++        let (x, v) = self.spring.solve(x0: self.x0, v0: self.v0, t: t)
++        self.value = self.target + x
++        self.velocity = v
++        // Perceptual rest: well below a pixel / a tenth of a degree for the values animated here.
++        if abs(x) < self.epsilon && abs(v) < self.epsilon * 10.0 && t > 0.03 {
++            self.value = self.target
++            self.velocity = 0.0
++            self.isSettled = true
++        }
++        return self.value
++    }
++}
+diff --git a/submodules/TelegramUI/Components/ChatList/DepthSwipe/Sources/DepthSwipeTracker.swift b/submodules/TelegramUI/Components/ChatList/DepthSwipe/Sources/DepthSwipeTracker.swift
+new file mode 100644
+index 0000000..6c17acc
+--- /dev/null
++++ b/submodules/TelegramUI/Components/ChatList/DepthSwipe/Sources/DepthSwipeTracker.swift
+@@ -0,0 +1,64 @@
++import Foundation
++
++// How the chat row drives the Depth Swipe rig — the Swift twin of the driving code in
++// prototype/src/chats/chat-list.js (ChatRow.beginSwipe / setOffset / update / depthStart):
++//   · the rig starts when a swipe begins and whenever the row moves on its own by more than half a
++//     point (the release spring, a tap closing it, an action closing or filling it);
++//   · every frame it gets the presented offset, its velocity — Δx / dt smoothed as
++//     vel = vel·0.45 + v·0.55 — and the pull since the finger caught the row;
++//   · it ends once nothing moves, the row is still (no finger, no animation, under 1 pt/s) and
++//     nothing is round the rim; resting open with pieces round the rim, it stays.
++// Pure Swift; CI checks it against the same golden frames as the rig.
++
++public struct DepthSwipeTracker {
++    /// The smoothed velocity of the presented offset (pt/s).
++    public private(set) var velocity: Double = 0.0
++    private var previousOffset: Double = 0.0
++    private var lastTime: Double?
++
++    public init() {
++    }
++
++    /// Restarts the smoothing: the row was at `offset` one frame before `time`.
++    public mutating func reset(offset: Double, at time: Double, frameDuration: Double) {
++        self.velocity = 0.0
++        self.previousOffset = offset
++        self.lastTime = time - frameDuration
++    }
++
++    /// ChatRow.update: one frame at `time` with the row presented at `offset`; returns the
++    /// smoothed velocity. dt is clamped to 50 ms, as the prototype's frame loop does.
++    @discardableResult
++    public mutating func frame(at time: Double, offset: Double) -> Double {
++        let dt = max(0.0, min(0.05, time - (self.lastTime ?? time)))
++        self.lastTime = time
++        let v = dt > 0.0 ? (offset - self.previousOffset) / dt : 0.0
++        self.velocity = self.velocity * 0.45 + v * 0.55
++        self.previousOffset = offset
++        return self.velocity
++    }
++
++    /// ChatRow.setOffset: a row that moves on its own (animated) by more than half a point goes 3D
++    /// the same way as under the finger.
++    public static func animatedMoveStarts(target: Double, presented: Double) -> Bool {
++        return abs(target - presented) > 0.5
++    }
++
++    /// The pull since the finger caught the row (`x − initial` while tracking, 0 once let go).
++    public static func pull(offset: Double, gestureInitialOffset: Double?) -> Double {
++        guard let gestureInitialOffset else {
++            return 0.0
++        }
++        return offset - gestureInitialOffset
++    }
++
++    /// The row is still: no finger, no animation, slower than 1 pt/s.
++    public static func isStill(isTracking: Bool, isAnimating: Bool, velocity: Double) -> Bool {
++        return !isTracking && !isAnimating && abs(velocity) < 1.0
++    }
++
++    /// Settled flat: back to the flat row.
++    public static func shouldEnd(isMoving: Bool, isStill: Bool, isRolled: Bool) -> Bool {
++        return !isMoving && isStill && !isRolled
++    }
++}

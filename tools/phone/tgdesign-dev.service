@@ -1,0 +1,14 @@
+[Unit]
+Description=tgdesign phone test build (live-reload server for /root/tgdesign/prototype, behind Caddy)
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/node /root/tgdesign/tools/serve.mjs --port 8738 --root prototype --live --public
+WorkingDirectory=/root/tgdesign
+Restart=on-failure
+RestartSec=2
+MemoryMax=120M
+Nice=5
+
+[Install]
+WantedBy=multi-user.target

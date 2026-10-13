@@ -1,0 +1,43 @@
+# Apple fonts: licence forbids redistribution (tools/fetch-sf-pro.sh downloads them locally)
+assets/fonts/*.otf
+assets/fonts/*.ttf
+# local clones, caches, environments
+vendor/
+tools/node_modules/
+tools/.venv-img/
+.venv/
+.chrome-render/
+.chrome-tmp-*/
+.serve.log
+.serve.pid
+__pycache__/
+.build/
+.swiftpm/
+# copied in by CI (single source of truth lives in ios/GlassCoinAvatar)
+ios/Standalone/Core/Sources/GlassCoinCore/*.swift
+ios/Standalone/TypeCheck/Sources/GlassCoinAvatar/*.swift
+ios/Standalone/LivingIconsCore/Sources/LivingIconsCore/*.swift
+ios/Standalone/LivingIconsTypeCheck/Sources/LivingSettingsIcons/*.swift
+ios/Standalone/DepthSwipeCore/Sources/DepthSwipeCore/*.swift
+ios/Standalone/DepthSwipeTypeCheck/Sources/DepthSwipe/*.swift
+# scratch renders (final videos are kept)
+renders/shots/
+renders/poses/
+renders/sheet-*/
+renders/*.log
+renders/test-*.mp4
+renders/takes/
+research/video/work/
+
+# originals contain the user's phone number; committed copies are in screenshots-redacted/
+research/source/screenshots/
+renders/review/
+# swipe research: derived frames/sheets and the Telegram Tips source clips stay local
+research/video/swipe/frames/
+research/video/swipe/sheets/
+research/video/swipe/src/
+# wrangler cache (tools/bot/deploy.sh)
+.wrangler/
+renders/designs/.bot/
+dist/
+.claude/

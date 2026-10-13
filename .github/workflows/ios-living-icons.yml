@@ -1,0 +1,71 @@
+name: iOS Living Icons
+
+# Compiles and tests the native (Telegram-iOS) side of the Living Icons:
+#   1. the Swift rigs, effects and artwork replay the web prototype's golden frames
+#      (tools/golden-icons.mjs → ios/Standalone/LivingIconsCore),
+#   2. the Telegram-facing module typechecks for the iOS Simulator with -warnings-as-errors against
+#      signature stubs of Display / AsyncDisplayKit / AppBundle (ios/Standalone/LivingIconsTypeCheck),
+#   3. ios/patches/0003-living-icons.patch applies to Telegram-iOS f1dd7a2, alone and in order with the
+#      other patches (0001 … 0005).
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'ios/LivingSettingsIcons/**'
+      - 'ios/Standalone/LivingIcons*/**'
+      - 'ios/patches/0003-living-icons.patch'
+      - '.github/workflows/ios-living-icons.yml'
+
+jobs:
+  verify:
+    runs-on: macos-15
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Parity — the Swift rigs replay the web prototype's golden frames
+        working-directory: ios/Standalone/LivingIconsCore
+        run: |
+          mkdir -p Sources/LivingIconsCore
+          cp ../../LivingSettingsIcons/Sources/LivingIcon*.swift Sources/LivingIconsCore/
+          set -o pipefail
+          swift test 2>&1 | tail -80
+
+      - name: Swift — typecheck the Telegram-facing module for iOS (-warnings-as-errors)
+        working-directory: ios/Standalone/LivingIconsTypeCheck
+        run: |
+          mkdir -p Sources/LivingSettingsIcons
+          cp ../../LivingSettingsIcons/Sources/*.swift Sources/LivingSettingsIcons/
+          SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
+          set -o pipefail
+          swift build --sdk "$SDK" --triple arm64-apple-ios15.0-simulator \
+            -Xswiftc -warnings-as-errors 2>&1 | grep -vE "^\[[0-9]+/[0-9]+\]" | tail -80
+
+      - name: Patch — 0003-living-icons.patch applies to Telegram-iOS f1dd7a2 (alone and in order)
+        run: |
+          set -euo pipefail
+          SHA=f1dd7a2dbd02cbbf513e75d5695d8d36d1cf5838
+          PATCHES="$GITHUB_WORKSPACE/ios/patches"
+          WORK="$RUNNER_TEMP/telegram-ios"
+          mkdir -p "$WORK"
+          cd "$WORK"
+          git init -q
+          # The pristine files the patches change (new files need none).
+          for f in $(cat "$PATCHES"/0*.patch | sed -n 's|^--- a/||p' | sort -u); do
+            mkdir -p "$(dirname "$f")"
+            curl -sSfL "https://raw.githubusercontent.com/TelegramMessenger/Telegram-iOS/$SHA/$f" -o "$f"
+          done
+          git apply --check "$PATCHES/0003-living-icons.patch"
+          for p in "$PATCHES"/0*.patch; do
+            git apply --whitespace=nowarn "$p"
+            echo "applied $(basename "$p")"
+          done
+          echo "0003 applies to f1dd7a2, alone and in order with the other patches"

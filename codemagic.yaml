@@ -1,0 +1,13 @@
+# Codemagic: the native (Telegram-iOS) checks of every design on a Mac, in one run — the same steps as the
+# GitHub workflows (.github/workflows/ios-*.yml), from ios/ci/verify-all.sh. Started by hand or through the
+# API (POST /builds { appId, workflowId: "ios-verify", branch }).
+workflows:
+  ios-verify:
+    name: iOS verify (all designs)
+    instance_type: mac_mini_m2
+    max_build_duration: 45
+    environment:
+      xcode: latest
+    scripts:
+      - name: Verify every native module and patch
+        script: bash ios/ci/verify-all.sh

@@ -1,0 +1,71 @@
+n=536 t=8.933 range=(848, 853) no icon
+n=537 t=8.950 range=(822, 823) no icon
+n=538 t=8.967 range=(794, 823) no icon
+n=539 t=8.983 range=(766, 777) no icon
+n=541 t=9.017 range=(710, 709) no icon
+n=542 t=9.033 range=(680, 682) no icon
+n=544 t=9.067 range=(626, 645) no icon
+n=545 t=9.083 range=(600, 635) no icon
+n=546 t=9.100 range=(576, 621) no icon
+n=547 t=9.117 range=(554, 621) bbox 16x34px centre=(561.5,250.5) ink= 360 diff_vs_n580=0.794
+n=548 t=9.133 range=(534, 617) bbox 25x34px centre=(552.0,250.5) ink= 431 diff_vs_n580=1.417
+n=549 t=9.150 range=(515, 613) bbox 36x46px centre=(545.5,250.5) ink= 744 diff_vs_n580=1.137
+n=550 t=9.167 range=(500, 614) bbox 36x46px centre=(545.5,250.5) ink= 744 diff_vs_n580=1.137
+n=551 t=9.183 range=(488, 614) bbox 37x50px centre=(544.0,250.5) ink= 740 diff_vs_n580=2.074
+n=552 t=9.200 range=(480, 613) bbox 46x53px centre=(545.5,251.0) ink= 837 diff_vs_n580=2.098
+n=553 t=9.217 range=(478, 613) bbox 46x53px centre=(545.5,251.0) ink= 837 diff_vs_n580=2.098
+n=554 t=9.233 range=(478, 613) bbox 47x51px centre=(545.0,250.0) ink= 845 diff_vs_n580=3.985
+n=555 t=9.250 range=(478, 612) bbox 50x50px centre=(546.5,250.5) ink= 799 diff_vs_n580=0.471
+n=556 t=9.267 range=(478, 612) bbox 50x50px centre=(546.5,250.5) ink= 802 diff_vs_n580=0.451
+n=557 t=9.283 range=(478, 612) bbox 49x50px centre=(547.0,250.5) ink= 764 diff_vs_n580=1.417
+n=558 t=9.300 range=(478, 612) bbox 46x47px centre=(546.5,251.0) ink= 706 diff_vs_n580=1.211
+n=559 t=9.317 range=(478, 612) bbox 46x47px centre=(546.5,251.0) ink= 713 diff_vs_n580=1.225
+n=560 t=9.333 range=(478, 612) bbox 46x46px centre=(546.5,250.5) ink= 702 diff_vs_n580=0.338
+n=561 t=9.350 range=(478, 612) bbox 42x46px centre=(546.5,250.5) ink= 652 diff_vs_n580=0.333
+n=562 t=9.367 range=(478, 612) bbox 42x46px centre=(546.5,250.5) ink= 649 diff_vs_n580=0.333
+n=563 t=9.383 range=(478, 612) bbox 44x46px centre=(547.5,250.5) ink= 647 diff_vs_n580=0.025
+n=564 t=9.400 range=(478, 612) bbox 44x45px centre=(547.5,251.0) ink= 629 diff_vs_n580=0.941
+n=565 t=9.417 range=(478, 612) bbox 44x45px centre=(547.5,251.0) ink= 629 diff_vs_n580=0.941
+n=566 t=9.433 range=(478, 612) bbox 44x45px centre=(547.5,251.0) ink= 628 diff_vs_n580=0.946
+n=567 t=9.450 range=(478, 612) bbox 44x45px centre=(547.5,251.0) ink= 628 diff_vs_n580=0.946
+n=568 t=9.467 range=(478, 612) bbox 44x45px centre=(547.5,251.0) ink= 628 diff_vs_n580=0.946
+n=569 t=9.483 range=(478, 612) bbox 44x45px centre=(547.5,251.0) ink= 628 diff_vs_n580=0.946
+n=570 t=9.500 range=(478, 612) bbox 44x45px centre=(547.5,251.0) ink= 628 diff_vs_n580=0.946
+n=571 t=9.517 range=(478, 612) bbox 44x45px centre=(547.5,251.0) ink= 628 diff_vs_n580=0.946
+n=572 t=9.533 range=(478, 612) bbox 44x45px centre=(547.5,251.0) ink= 628 diff_vs_n580=0.946
+n=573 t=9.550 range=(478, 612) bbox 44x45px centre=(547.5,251.0) ink= 628 diff_vs_n580=0.946
+n=574 t=9.567 range=(478, 612) bbox 44x45px centre=(547.5,251.0) ink= 628 diff_vs_n580=0.946
+n=575 t=9.583 range=(478, 612) bbox 44x45px centre=(547.5,251.0) ink= 628 diff_vs_n580=0.946
+n=576 t=9.600 range=(478, 612) bbox 44x45px centre=(547.5,251.0) ink= 628 diff_vs_n580=0.946
+n=577 t=9.617 range=(478, 612) bbox 44x46px centre=(547.5,250.5) ink= 634 diff_vs_n580=0.015
+n=578 t=9.633 range=(478, 612) bbox 44x46px centre=(547.5,250.5) ink= 637 diff_vs_n580=0.010
+n=579 t=9.650 range=(478, 612) bbox 44x46px centre=(547.5,250.5) ink= 638 diff_vs_n580=0.005
+n=580 t=9.667 range=(478, 612) bbox 44x46px centre=(547.5,250.5) ink= 639 diff_vs_n580=0.000
+n=581 t=9.683 range=(482, 609) bbox 44x46px centre=(547.5,250.5) ink= 637 diff_vs_n580=0.000
+n=582 t=9.700 range=(478, 611) bbox 44x46px centre=(547.5,250.5) ink= 634 diff_vs_n580=0.000
+n=583 t=9.717 range=(478, 612) bbox 44x46px centre=(547.5,250.5) ink= 637 diff_vs_n580=0.005
+n=584 t=9.733 range=(477, 612) bbox 44x46px centre=(547.5,250.5) ink= 637 diff_vs_n580=0.005
+n=585 t=9.750 range=(477, 612) bbox 44x46px centre=(547.5,250.5) ink= 637 diff_vs_n580=0.005
+n=586 t=9.767 range=(477, 612) bbox 44x46px centre=(547.5,250.5) ink= 637 diff_vs_n580=0.005
+n=587 t=9.783 range=(477, 612) bbox 44x46px centre=(547.5,250.5) ink= 637 diff_vs_n580=0.005
+n=588 t=9.800 range=(477, 612) bbox 44x46px centre=(547.5,250.5) ink= 637 diff_vs_n580=0.005
+n=589 t=9.817 range=(477, 612) bbox 44x46px centre=(547.5,250.5) ink= 637 diff_vs_n580=0.005
+n=590 t=9.833 range=(477, 612) bbox 44x46px centre=(547.5,250.5) ink= 637 diff_vs_n580=0.005
+n=591 t=9.850 range=(477, 612) bbox 44x46px centre=(547.5,250.5) ink= 637 diff_vs_n580=0.005
+n=592 t=9.867 range=(477, 612) bbox 44x46px centre=(547.5,250.5) ink= 637 diff_vs_n580=0.005
+n=593 t=9.883 range=(477, 612) bbox 44x46px centre=(547.5,250.5) ink= 637 diff_vs_n580=0.005
+n=594 t=9.900 range=(477, 612) bbox 44x46px centre=(547.5,250.5) ink= 637 diff_vs_n580=0.005
+n=595 t=9.917 range=(477, 612) bbox 44x46px centre=(547.5,250.5) ink= 637 diff_vs_n580=0.005
+n=596 t=9.933 range=(478, 609) bbox 44x46px centre=(547.5,250.5) ink= 637 diff_vs_n580=0.005
+n=597 t=9.950 range=(488, 601) bbox 44x46px centre=(547.5,250.5) ink= 637 diff_vs_n580=0.005
+n=598 t=9.967 range=(496, 593) bbox 44x46px centre=(547.5,250.5) ink= 638 diff_vs_n580=0.005
+n=599 t=9.983 range=(504, 585) bbox 44x46px centre=(547.5,250.5) ink= 637 diff_vs_n580=0.005
+n=600 t=10.000 range=(510, 579) bbox 44x46px centre=(547.5,250.5) ink= 637 diff_vs_n580=0.005
+n=601 t=10.017 range=(514, 573) bbox 43x46px centre=(548.0,250.5) ink= 632 diff_vs_n580=0.931
+n=602 t=10.033 range=(514, 513) no icon
+n=603 t=10.050 range=(514, 513) no icon
+n=604 t=10.067 range=(514, 521) no icon
+n=605 t=10.083 range=(512, 577) bbox 42x52px centre=(546.5,251.5) ink= 791 diff_vs_n580=0.706
+n=606 t=10.100 range=(527, 579) bbox 36x50px centre=(544.5,250.5) ink= 715 diff_vs_n580=1.113
+n=607 t=10.117 range=(566, 583) no icon
+n=608 t=10.133 range=(580, 589) no icon

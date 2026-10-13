@@ -1,0 +1,10 @@
+import puppeteer from 'puppeteer-core';
+import { mkdtempSync, rmSync } from 'node:fs';
+const profileDir = mkdtempSync('/root/tgdesign/.chrome-tmp-');
+process.on('exit', () => { try { rmSync(profileDir, { recursive: true, force: true }); } catch (_) {} });
+import fs from 'node:fs';
+const svg = fs.readFileSync(process.argv[2], 'utf8');
+const b = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', headless: 'new', userDataDir: profileDir, args: ['--no-sandbox'] });
+const p = await b.newPage(); await p.setViewport({ width: 200, height: 200 });
+await p.setContent(`<body style="margin:0;background:#3c8a80">${svg.replace('<svg ', '<svg width="200" height="200" style="opacity:.55;filter:brightness(0)" ')}</body>`);
+await p.screenshot({ path: process.argv[3] }); await b.close();

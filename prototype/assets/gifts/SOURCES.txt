@@ -1,0 +1,27 @@
+Gift-like Lottie animations copied verbatim (no edits) for the web prototype. See ../settings-icons-and-gifts.md §B6.
+
+ios/  <- TelegramMessenger/Telegram-iOS f1dd7a2dbd02cbbf513e75d5695d8d36d1cf5838 (2026-10-07).
+       The repo has no LICENSE file; telegram.org/apps states "Licensed under GNU GPL v. 2 or later".
+android/ <- DrKLO/Telegram f2908b14133bbffbf7ab04f641ecb5bfaf533242 (2026-09-30), LICENSE = GNU GPL v2.
+.tgs = gzip-compressed Lottie JSON (gzip -dc X.tgs > X.json for lottie-web).
+
+sha1 (file as stored)                     upstream path
+88722daa7b833fc2895bc04c7578e961d8d5029c  submodules/TelegramUI/Resources/Animations/anim_gift.tgs
+1741880539b496bdbcb3256ca96390462dc77031  Telegram/Telegram-iOS/Resources/Cake.tgs
+cfba7692541456831ec160bf22d830726e965492  Telegram/Telegram-iOS/Resources/Celebrate.tgs
+03b7dec34442463278bb1a95dee4153b3d0018c6  Telegram/Telegram-iOS/Resources/Diamond.tgs
+1a12b61edd0258d14aba5719f7ca47faef777b43  Telegram/Telegram-iOS/Resources/GiftUpgraded.tgs
+cbaea39ebd846f9e34e93f653fcceb74bf4b6145  Telegram/Telegram-iOS/Resources/GramDiamond.tgs
+1b0903f2d5cf698bc6ac185af3bb748c8e87f9b0  submodules/TelegramUI/Resources/Animations/PremiumStar.tgs
+6ccfd14719023879c3e2229e62ad690d1c597330  submodules/TelegramUI/Resources/Animations/SparklesEmoji.tgs
+80dd2e1dce871051699d30300b98b8ea75b029f1  submodules/TelegramUI/Resources/Animations/star_up/star_reaction_activate.tgs
+335a7fd6c911125d03b369f527df4de1cce91795  submodules/TelegramUI/Resources/Animations/star_up/star_reaction_appear.tgs
+703647955c6393a0c0e043621a929c69afaad0e3  submodules/TelegramUI/Resources/Animations/star_up/star_reaction_effect.tgs
+0ac12d6021eb2ae79a1e99c31532cf80ba3dba34  submodules/TelegramUI/Resources/Animations/StarsBuy.tgs
+eb4f8a13dee88dc7034e5181fd3633eb3abf8bdc  submodules/TelegramUI/Resources/Animations/TabGift.tgs
+9a23e2bede5b8731dce887b14e986d8af7500af9  TMessagesProj/src/main/res/raw/gift.json
+3e21f036786e1a78ef34cbea07349ea2dc1ac52b  TMessagesProj/src/main/res/raw/premium_gift.json
+
+Prototype copies (prototype/assets/gifts/*.json): the .tgs files above gunzipped, unchanged otherwise
+(premium_gift.json copied as is). Telegram for iOS and Android are licensed under the GNU GPL v2 or later
+(telegram.org/apps; DrKLO/Telegram LICENSE = GPL v2); these animations remain under those terms.
