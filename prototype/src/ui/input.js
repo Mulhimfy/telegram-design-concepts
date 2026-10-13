@@ -12,7 +12,7 @@ const COIN_SLOP = 8;     // pt before a touch on the avatar turns it
 const HIGHLIGHT_DELAY = 0.06;
 
 export class InputRouter {
-  constructor({ screen, device, clock, animator, coin, coinCenter, scroll, rows, onRowTap, onAvatarTap, sheet, enabled }) {
+  constructor({ screen, device, clock, animator, coin, coinCenter, inertAvatar, scroll, rows, onRowTap, onAvatarTap, sheet, enabled }) {
     this.screen = screen;
     this.enabled = enabled || (() => true);   // the Settings tab is showing
     this.device = device;
@@ -20,6 +20,7 @@ export class InputRouter {
     this.animator = animator;
     this.coin = coin;                 // CoinController
     this.coinCenter = coinCenter;     // () => {x, y} in screen pt, or null while the avatar can't be turned
+    this.inertAvatar = inertAvatar;   // (p) => true where the photo takes the touch but does nothing with a drag (today)
     this.scroll = scroll;             // ScrollView (or null)
     this.rows = rows;                 // () => [{ id, x, y, w, h, highlight }] in list pt (screen pt at offset 0)
     this.onRowTap = onRowTap;
@@ -96,6 +97,10 @@ export class InputRouter {
       this.coin.press(this.toCoin(p, c), now);
       return;
     }
+    if (this.inertAvatar?.(p)) {
+      t.target = 'avatar';
+      return;
+    }
     t.target = 'list';
     this.scroll?.begin(p[1], now);
     const row = this.rowAt(p);
@@ -114,7 +119,7 @@ export class InputRouter {
     const dy = p[1] - t.start[1];
     // A tap may wander a little (sideways more than up and down: the list and the sheets
     // only move vertically); past that it is a drag, starting from where it crossed.
-    const crossed = t.target === 'coin'
+    const crossed = t.target === 'coin' || t.target === 'avatar'
       ? Math.hypot(dx, dy) > COIN_SLOP
       : Math.abs(dy) > SLOP || Math.hypot(dx, dy) > 2 * SLOP;
     if (!t.moved && crossed) {
@@ -152,6 +157,10 @@ export class InputRouter {
     if (t.target === 'coin') {
       const r = this.coin.release(this.toCoin(p, t.center), now, cancelled);
       if (r.tap && !cancelled) this.onAvatarTap?.(now);
+      return;
+    }
+    if (t.target === 'avatar') {
+      if (!t.moved && !cancelled) this.onAvatarTap?.(now);
       return;
     }
     this.scroll?.end(cancelled || !t.moved ? 0 : v.y, now);

@@ -20,6 +20,7 @@
 // takes ~55 pt more to go over it; each letter takes the same 55 pt as it gets there.
 
 import { SpringParams, SpringValue } from '../core/spring.js';
+import { diag, diagOn } from '../core/diag.js';
 
 const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
@@ -36,7 +37,7 @@ export const DepthLook = {
   // Left swipes: the rim at the screen's left edge. A piece whose flat centre has gone d pt past
   // the hinge line is d / radius rad round it (on screen at hinge − radius·sin, radius·(1 − cos)
   // deep); it fades out between fade[0] and fade[1] degrees and is gone behind the rim after.
-  edge: { hinge: 36, radius: 34, shade: 0.5, fade: [62, 90] },
+  edge: { hinge: 36, radius: 34, shade: 0.5, fade: [62, 90], flipBy: 0.68 },
   spin: { duration: 0.56, stagger: 0.03 },                        // the full-swipe moment
 };
 
@@ -87,17 +88,28 @@ export class DepthRig {
   }
 
   begin(now) {
-    if (!this.enabled) return;
+    if (!this.enabled) {
+      diag('depth-off', { reduceMotion });
+      return;
+    }
     // Still running from the last move: it carries on, unless its letters left the page (the
     // row was redrawn), then it starts afresh.
-    if (this.active && this.titleLayer && !this.titleLayer.isConnected) this.end();
-    if (this.active) return;
+    if (this.active && this.titleLayer && !this.titleLayer.isConnected) {
+      diag('depth-detached', { title: this.stats?.title });
+      this.end();
+    }
+    if (this.active) {
+      if (this.stats) this.stats.continued++;
+      return;
+    }
     this.active = true;
     this.samples = [];
     this.spinT0 = null;
     this.buildTitle();
     this.buildLines();
     this.buildAvatar();
+    // Field numbers for this run of the rig (core/diag.js).
+    this.stats = !diagOn ? null : { title: (this.parts.title?.textContent || '').slice(0, 24), glyphs: this.glyphs?.length || 0, frames: 0, minX: 0, maxX: 0, maxRim: 0, maxRoll: 0, continued: 0, peak: null, peakX: 0 };
   }
 
   // ---------------------------------------------------------------- building
@@ -304,7 +316,10 @@ export class DepthRig {
         const roll = step(g.roll, T.roll * motion(t0) + T.hold * tension);
         const R = rim(this.titleX + g.cx + x);
         const k = R ? 1 - R.r : 1;
-        const a = (roll + this.spinAngle(now, order)) * k;
+        // Rolling over the rim each letter flips over once, like a reel rolling off the edge — done by
+        // ~60° round, before it fades, and back the other way as it comes out (left swipes always show it).
+        const flip = R ? 360 * ease(clamp(R.r / DepthLook.edge.flipBy)) : 0;
+        const a = (roll + this.spinAngle(now, order)) * k + flip;
         const lift = T.lift * Math.min(1, Math.abs(Math.sin(a * DEG)) * 1.4) * k;
         let t;
         if (R) {
@@ -418,12 +433,33 @@ export class DepthRig {
     }
     // While anything is round the rim the rig stays (the row may rest open like that).
     this.rolled = rolled;
+    const S = this.stats;
+    if (S) {
+      S.frames++;
+      S.minX = Math.min(S.minX, Math.round(x));
+      S.maxX = Math.max(S.maxX, Math.round(x));
+      for (const g of this.glyphs || []) {
+        const m = /rotateY\((-?[0-9.]+)deg\).*rotateX\((-?[0-9.]+)deg/.exec(g.last) || /rotateX\((-?[0-9.]+)deg/.exec(g.last);
+        if (!m) continue;
+        if (m.length > 2) { S.maxRim = Math.max(S.maxRim, Math.round(Math.abs(+m[1]))); S.maxRoll = Math.max(S.maxRoll, Math.round(Math.abs(+m[2]) % 360)); } else S.maxRoll = Math.max(S.maxRoll, Math.round(Math.abs(+m[1]) % 360));
+      }
+      // What the browser made of it, at the farthest point of the move.
+      if (Math.abs(x) > Math.abs(S.peakX) + 24 && this.glyphs?.[0]) {
+        S.peakX = x;
+        const g = this.glyphs[Math.min(2, this.glyphs.length - 1)].el;
+        const cs = getComputedStyle(g);
+        const r = g.getBoundingClientRect();
+        S.peak = { x: Math.round(x), tf: cs.transform.slice(0, 48), vis: cs.visibility, w: +r.width.toFixed(1), h: +r.height.toFixed(1), layer: !!this.titleLayer?.isConnected, host: getComputedStyle(this.parts.title).color };
+      }
+    }
     return moving || this.spinning(now);
   }
 
   // Back to flat DOM (call once update() has settled).
   end() {
     if (!this.active) return;
+    if (this.stats) diag('depth', this.stats);
+    this.stats = null;
     this.active = false;
     this.rolled = false;
     if (this.titleLayer) {

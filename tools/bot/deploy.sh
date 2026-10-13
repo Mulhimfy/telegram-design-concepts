@@ -32,37 +32,27 @@ cp tools/bot/_worker.js "$dist/_worker.js"
 # A 404 page turns off Pages' single-page fallback: a missing file (SF Pro is never deployed: Apple's
 # licence) is a plain 404, not index.html served as a font.
 printf '<!doctype html><title>Not found</title>' > "$dist/404.html"
-# Demo videos (one per design), listed in videos/index.json for the bot.
+# Demo videos: the files themselves (for a browser) and videos/index.json for the bot — Telegram file ids
+# from tools/bot/upload-videos.py (Telegram can't fetch them from Pages by URL), before and after per design.
 if ls renders/designs/*.mp4 >/dev/null 2>&1; then
   mkdir -p "$dist/videos"
-  python3 - "$dist/videos" renders/designs/*.mp4 <<'EOF'
-import json, os, shutil, subprocess, sys
-out, files = sys.argv[1], sys.argv[2:]
+  python3 - "$dist/videos" tools/bot/videos.json renders/designs/*.mp4 <<'EOF'
+import json, os, re, shutil, sys
+out, ids, files = sys.argv[1], sys.argv[2], sys.argv[3:]
+ids = json.load(open(ids)) if os.path.exists(ids) else {}
 index = {}
 for f in files:
-    key = os.path.basename(f).split('-', 1)[1].rsplit('.', 1)[0] if '-' in os.path.basename(f) else os.path.basename(f)[:-4]
-    meta = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height',
-                           '-show_entries', 'format=duration', '-of', 'json', f], capture_output=True, text=True).stdout
-    m = json.loads(meta)
-    dst = os.path.join(out, f'{key}.mp4')
-    if os.path.getsize(f) > 19 * 1024 * 1024:
-        # Telegram fetches videos by URL up to 20 MB: a lighter encode of the same frames for the bot
-        # (cached next to the renders, redone when the render is newer).
-        cache = os.path.join(os.path.dirname(f), '.bot', f'{key}.mp4')
-        if not os.path.exists(cache) or os.path.getmtime(cache) < os.path.getmtime(f):
-            os.makedirs(os.path.dirname(cache), exist_ok=True)
-            for crf in (22, 25, 28):
-                subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', f, '-c:v', 'libx264', '-preset', 'medium', '-crf', str(crf),
-                                '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-threads', '1', cache], check=True)
-                if os.path.getsize(cache) <= 19 * 1024 * 1024:
-                    break
-        shutil.copy(cache, dst)
-    else:
-        shutil.copy(f, dst)
-    index[key] = {'file': f'{key}.mp4', 'width': m['streams'][0]['width'], 'height': m['streams'][0]['height'],
-                  'duration': round(float(m['format']['duration']))}
+    m = re.match(r'\d+-([a-z]+)(?:-(before|after))?\.mp4$', os.path.basename(f))
+    if not m:
+        continue
+    key, which = m.group(1), m.group(2) or 'after'
+    name = f'{key}-{which}.mp4'
+    shutil.copy(f, os.path.join(out, name))
+    v = ids.get(f'{key}-{which}')
+    if v:
+        index.setdefault(key, {})[which] = {'file_id': v['file_id'], 'file': name, 'width': v['width'], 'height': v['height'], 'duration': v['duration']}
 json.dump(index, open(os.path.join(out, 'index.json'), 'w'), indent=1)
-print('videos:', ', '.join(sorted(index)))
+print('videos:', ', '.join(f'{k} ({"+".join(sorted(v))})' for k, v in sorted(index.items())))
 EOF
 fi
 

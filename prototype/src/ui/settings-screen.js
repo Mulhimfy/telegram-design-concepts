@@ -178,15 +178,18 @@ export function buildSettingsScreen(screen, { device, persona, palette, dark = t
   };
 }
 
-export function defaultSettingsSections() {
+// `before`: Telegram as it is today (no Add Back Photo / Change Glass Color rows).
+export function defaultSettingsSections({ before = false } = {}) {
   const c = SettingsColors;
   return [
     [
       { glyph: 'set-emoji-status', title: 'Change Emoji Status', accent: true },
       { glyph: 'set-covercolor', title: 'Change Profile Color', accent: true },
       { glyph: 'set-avatar', title: 'Change Profile Photo', accent: true },
-      { id: 'backPhoto', glyph: 'set-backphoto', title: 'Add Back Photo', accent: true, newBadge: true },
-      { id: 'glassColor', glyph: 'set-glass', title: 'Change Glass Color', accent: true, newBadge: true },
+      ...(before ? [] : [
+        { id: 'backPhoto', glyph: 'set-backphoto', title: 'Add Back Photo', accent: true, newBadge: true },
+        { id: 'glassColor', glyph: 'set-glass', title: 'Change Glass Color', accent: true, newBadge: true },
+      ]),
     ],
     [{ icon: 'ic-profile', colors: [c.red], title: 'My Profile' }],
     [{ custom: moneyIcon(), title: 'Money', newBadge: true, value: '<span style="font-size:17px">0.</span><span style="font-size:13px">09</span>' }],

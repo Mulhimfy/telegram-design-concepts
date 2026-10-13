@@ -16,6 +16,7 @@ export function timeline() {
     // Video seconds → page seconds at the current speed (for waits that should read the same).
     video(d) { T += d * rate; return k; },
     caption(text) { events.push({ t: T, caption: text }); return k; },
+    tag(html) { events.push({ t: T, tag: html }); return k; },
     camera(c, duration = 1.0) { events.push({ t: T, camera: c, duration }); return k; },
     // Play speed from here on (slow motion < 1); `ramp`: video seconds to get there.
     speed(r, ramp = 0.3) { events.push({ t: T, rate: r, ramp }); rate = r; return k; },

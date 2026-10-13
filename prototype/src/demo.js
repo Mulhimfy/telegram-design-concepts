@@ -14,6 +14,7 @@
 //   { t, tap: [x,y], hold }                                            a tap (down, up after `hold` s)
 //   { t, rate: 0.25, ramp: 0.25 }                                      play speed from here (ramp: video s)
 //   { t, caption: 'text' | null }                                      caption under the phone
+//   { t, tag: 'html' }                                                 corner label (Before / After)
 //   { t, call: (ctx) => {} }                                           anything else
 
 import { easeInOutCubic } from './stage.js';
@@ -123,6 +124,7 @@ export class Demo {
     for (const e of fire) {
       if (e.camera) this.stage.cameraTo(resolve(e.camera), this.vt, e.duration ?? 1.0);
       if (e.caption !== undefined) this.stage.setCaption(e.caption, this.vt);
+      if (e.tag !== undefined) this.stage.setTag?.(e.tag, this.vt);
       if (e.down) {
         this.finger = resolve(e.down).slice();
         this.down = true;

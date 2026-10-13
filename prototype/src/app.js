@@ -18,7 +18,7 @@ import { Animator, ease } from './core/animator.js';
 import { SpringParams, SpringValue } from './core/spring.js';
 import { initTelegram, telegramHaptics, setTelegramChrome } from './core/telegram.js';
 import { Cover } from './ui/cover.js';
-import { buildSettingsScreen, iconURL } from './ui/settings-screen.js';
+import { buildSettingsScreen, iconURL, defaultSettingsSections } from './ui/settings-screen.js';
 import { LivingIcons } from './settings/living-icons.js';
 import { NavStack } from './settings/nav.js';
 import { buildSubPage } from './settings/subpages.js';
@@ -40,6 +40,8 @@ import { glassDemoScript } from './scripts/coin-demo.js';
 import { DEMOS } from './scripts/index.js';
 
 const params = new URLSearchParams(location.search);
+// ?before=1: Telegram as it is today — none of the five designs (the "before" demo videos).
+const BEFORE = params.get('before') === '1';
 
 export const DEVICES = {
   iphone11: { name: 'iPhone 11', width: 414, height: 896, statusBar: 48, island: false, corner: 41.5, bottomInset: 34 },
@@ -145,6 +147,7 @@ async function main() {
     subtitle: params.get('subtitle') || '@ahmedevfy',
     statusImage: svgDataURL(ggStatusSVG()),
     time: params.get('time') || '9:41',
+    sections: BEFORE ? defaultSettingsSections({ before: true }) : undefined,
   };
   const ui = buildSettingsScreen(rootView, { device, persona, palette, dark });
   if (ui.statusBar?.el?.parentElement) screen.appendChild(ui.statusBar.el);   // stays put over pushed pages
@@ -382,7 +385,7 @@ async function main() {
   const TAB_CHATS = 2;
   const TAB_SETTINGS = 3;
   let tab = params.get('tab') === 'chats' ? TAB_CHATS : TAB_SETTINGS;
-  const chatsUI = buildChatsPage(rootView, { device, dark, clock, photoURL });
+  const chatsUI = buildChatsPage(rootView, { device, dark, clock, photoURL, before: BEFORE });
   const capsule = { x: new SpringValue(ui.tab.itemX(tab), SpringParams.fromResponse(0.38, 0.78)) };
   const setTab = (i, now, animated = true) => {
     if (i !== TAB_CHATS && i !== TAB_SETTINGS) {
@@ -428,7 +431,9 @@ async function main() {
     enabled: () => tab === TAB_SETTINGS && !nav.top,
     screen, device, clock, animator,
     coin: controller,
-    coinCenter: () => (scroll.avatarInteractive ? G.avatarCenter : null),
+    coinCenter: () => (!BEFORE && scroll.avatarInteractive ? G.avatarCenter : null),
+    // Today a drag on the photo does nothing (the header gives the touch to the avatar, which only has a tap).
+    inertAvatar: (p) => BEFORE && scroll.avatarInteractive && Math.hypot(p[0] - G.avatarCenter.x, p[1] - G.avatarCenter.y) <= 50,
     scroll,
     rows: () => ui.rows,
     onRowTap: (id, now) => {
@@ -439,8 +444,8 @@ async function main() {
         const row = ui.rows.find((r) => r.id === id);
         const title = row?.title?.firstChild?.textContent || id;
         const page = buildSubPage({ device, title });
-        page.onReturning = (t) => { if (row) living.play(row, t); };
-        if (row) living.press(row, now);
+        page.onReturning = (t) => { if (row && !BEFORE) living.play(row, t); };
+        if (row && !BEFORE) living.press(row, now);
         animator.after(0.06, (t) => nav.push(page, t), now);
       }
     },
@@ -450,7 +455,7 @@ async function main() {
   // A chat opens its profile (the Gifts tab: the glass gift tiles).
   const openProfile = (chat, now) => {
     if (nav.top) return;
-    const page = buildProfilePage({ device, dark, chat, photoURL, tg, scale: renderScale });
+    const page = buildProfilePage({ device, dark, chat, photoURL, tg, scale: renderScale, before: BEFORE });
     animator.after(0.08, (t) => nav.push(page, t), now);
   };
   chatsUI.chats.onOpen = openProfile;
@@ -541,7 +546,7 @@ async function main() {
   if (stage) {
     const which = params.get('demo');
     const ctx = {
-      avatar: G.avatarCenter, G, W: G.W, H: device.height, device, ui, stage, clock,
+      avatar: G.avatarCenter, G, W: G.W, H: device.height, device, ui, stage, clock, before: BEFORE,
       sheets: { back: backSheet, color: colorSheet }, chats: chatsUI.chats, nav, living, physics, light, turnLight,
       setTab, get tab() { return tab; }, openProfile, scroll, glassStyle, setGlassColor, chooseBack, iconURL, screen,
       addUpdater: (f) => demoUpdaters.push(f),

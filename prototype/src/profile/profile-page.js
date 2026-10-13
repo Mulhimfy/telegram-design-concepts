@@ -109,11 +109,12 @@ function backdrop(body, u, h) {
   }
 }
 
-export function buildProfilePage({ device, dark, chat, photoURL, tg, scale }) {
+// before: Telegram as it is today — flat gift tiles, nothing under the finger or the phone's tilt.
+export function buildProfilePage({ device, dark, chat, photoURL, tg, scale, before = false }) {
   const W = device.width;
   const H = device.height;
   const S = device.statusBar;
-  const page = el('div', 'sub-page profile-page', `left:0;top:0;width:${W}px;height:${H}px`);
+  const page = el('div', `sub-page profile-page${before ? ' before' : ''}`, `left:0;top:0;width:${W}px;height:${H}px`);
   const content = el('div', 'abs', `left:0;top:0;width:${W}px;will-change:transform`, page);
 
   // --- cover: the profile colour, its pattern, the photo, name and status
@@ -270,17 +271,17 @@ export function buildProfilePage({ device, dark, chat, photoURL, tg, scale }) {
       shown = true;
       layoutTabs();
       tabEls[0].minis?.forEach((m, i) => { m.el.style.animation = `gift-mini-in 0.2s ${(i * 0.05).toFixed(2)}s both`; m.play(now); });
-      motion.start();
+      if (!before) motion.start();
     },
     onPopped() { motion.stop(); },
     // While a tile is being inspected, horizontal slides are the tiles' (not a swipe back).
     claimsHorizontal() { return !!held || touch?.kind === 'inspect'; },
     down(p, now) {
-      motion.start();
+      if (!before) motion.start();
       tracker.reset();
       tracker.add(now, p[0], p[1]);
       if (scroller.moving) { scroller.stop(); touch = { start: p, last: p, caught: true, t0: now }; return; }
-      const t = tileAt(p);
+      const t = before ? null : tileAt(p);
       touch = { start: p, last: p, tile: t, t0: now, kind: 'pending' };
       if (t) {
         aimAt(t, p);
@@ -316,7 +317,7 @@ export function buildProfilePage({ device, dark, chat, photoURL, tg, scale }) {
       } else if (touch.tile) aimAt(touch.tile, p);
     },
     up(p, now, cancelled) {
-      motion.start();   // Safari grants motion access on a completed tap
+      if (!before) motion.start();   // Safari grants motion access on a completed tap
       if (!touch) return;
       const t0 = touch;
       touch = null;
@@ -329,6 +330,7 @@ export function buildProfilePage({ device, dark, chat, photoURL, tg, scale }) {
     },
     // A mouse over the grid (no button pressed): the tile under it leans toward the pointer.
     hover(p) {
+      if (before) return;
       const t = p ? tileAt(p) : null;
       if (t !== held) { held?.release(); held = t; }
       if (t) aimAt(t, p);
@@ -361,9 +363,9 @@ export function buildProfilePage({ device, dark, chat, photoURL, tg, scale }) {
           }
         }
       }
-      const light = motion.update(dt);
+      const light = before ? null : motion.update(dt);
       for (const t of tiles) {
-        if (t.update(now, dt, light)) busy = true;
+        if (!before && t.update(now, dt, light)) busy = true;
         if (t.playing && !t.lottie.update(now)) t.playing = false;
         if (t.playing) busy = true;
       }

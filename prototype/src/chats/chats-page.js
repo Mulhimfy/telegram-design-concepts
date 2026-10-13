@@ -20,7 +20,7 @@ const composeIcon = '<svg viewBox="0 0 30 30" width="30" height="30"><path d="M1
 const storyIcon = '<svg viewBox="0 0 30 30" width="30" height="30"><path d="M15 6.6a8.4 8.4 0 1 0 8.4 8.4" fill="none" stroke="currentColor" stroke-width="1.66" stroke-linecap="round"/><path d="M19.3 7.7a8.4 8.4 0 0 1 2.4 1.9M22.6 11.4a8.4 8.4 0 0 1 .7 2.2" fill="none" stroke="currentColor" stroke-width="1.66" stroke-linecap="round"/><path d="M15 11v8M11 15h8" stroke="currentColor" stroke-width="1.66" stroke-linecap="round"/></svg>';
 const searchIcon = '<svg viewBox="0 0 24 24" width="24" height="24"><circle cx="10.6" cy="10.6" r="6.1" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M15.2 15.2l4.3 4.3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
 
-export function buildChatsPage(screen, { device, dark, clock, photoURL }) {
+export function buildChatsPage(screen, { device, dark, clock, photoURL, before = false }) {
   const W = device.width;
   const S = device.statusBar;
   const C = ChatMetrics.searchCollapse;
@@ -59,7 +59,7 @@ export function buildChatsPage(screen, { device, dark, clock, photoURL }) {
     },
   };
 
-  const chats = new ChatListScreen(page, { device, dark, clock, photoURL, header });
+  const chats = new ChatListScreen(page, { device, dark, clock, photoURL, header, before });
   page.appendChild(fade);         // above the list
   page.appendChild(searchNode);
 

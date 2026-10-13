@@ -67,12 +67,15 @@ public enum DepthSwipeLook {
     /// Left swipes: the rim at the screen's left edge. A piece whose flat centre has gone d pt past
     /// the hinge line is d / radius rad round it (on screen at hinge − radius·sin, radius·(1 − cos)
     /// deep); it fades out between fade.start and fade.end degrees and is gone behind the rim after.
+    /// Rolling over it each letter flips over once (a full turn about its own axis), done by `flipBy`
+    /// of the way round, before it fades.
     public struct Edge {
         public let hinge: Double
         public let radius: Double
         public let shade: Double
         public let fadeStart: Double
         public let fadeEnd: Double
+        public let flipBy: Double
     }
 
     /// The full-swipe moment.
@@ -90,7 +93,7 @@ public enum DepthSwipeLook {
     public static let title = Title(roll: 40.0, hold: 18.0, lift: 4.0, depth: 6.0, layers: 7, stagger: 0.022, shade: 0.4, spring: DepthSwipeSpring(response: 0.17, dampingFraction: 0.5))
     public static let lines = Lines(lean: 18.0, hold: 8.0, lift: 0.0, delay: 0.03, stagger: 0.035, spring: DepthSwipeSpring(response: 0.22, dampingFraction: 0.58), boxRightInset: 42.0)
     public static let avatar = Avatar(lean: 48.0, hold: 22.0, lift: 7.0, depth: 6.0, layers: 6, delay: 0.008, spring: DepthSwipeSpring(response: 0.22, dampingFraction: 0.58), parallax: 7.0)
-    public static let edge = Edge(hinge: 36.0, radius: 34.0, shade: 0.5, fadeStart: 62.0, fadeEnd: 90.0)
+    public static let edge = Edge(hinge: 36.0, radius: 34.0, shade: 0.5, fadeStart: 62.0, fadeEnd: 90.0, flipBy: 0.68)
     public static let spin = Spin(duration: 0.56, stagger: 0.03)
 
     /// Angles are springs in degrees: at rest within 0.02° (SpringValue's default is for points).
@@ -461,7 +464,9 @@ public final class DepthSwipeRig {
             let roll = step(self.rolls[i], title.roll * motion(t0) + title.hold * tension)
             let place = rimAt(self.geometry.titleX + cx + x)
             let k = place.map { 1.0 - $0.r } ?? 1.0
-            let a = (roll + self.spinAngle(at: now, order: Double(order))) * k
+            // Rolling over the rim each letter flips over once, like a reel rolling off the edge.
+            let flip = place.map { 360.0 * ease(clamp($0.r / edge.flipBy)) } ?? 0.0
+            let a = (roll + self.spinAngle(at: now, order: Double(order))) * k + flip
             let lift = title.lift * min(1.0, abs(sin(a * degree)) * 1.4) * k
             var rim: DepthSwipeFrame.Rim?
             if let place {

@@ -16,6 +16,7 @@ import { VelocityTracker } from '../core/velocity.js';
 import { Scroller } from '../core/scroller.js';
 import { RevealOptions } from './reveal-options.js';
 import { DepthRig } from './depth.js';
+import { diag } from '../core/diag.js';
 import { CHATS, AVATAR_GRADIENTS, initials } from './chat-data.js';
 import { LottieIcon, lottie, loadAnimation } from './lottie-icon.js';
 
@@ -98,7 +99,9 @@ const ICONS = {
 export class ChatListScreen {
   // header: { barH (search shown), search: { node, field, text } } — the search field collapses
   // over the first 54 pt of scrolling and the list starts with it collapsed.
-  constructor(page, { device, dark, clock, header, photoURL }) {
+  // before: Telegram as it is today (no Depth Swipe: the row slides flat).
+  constructor(page, { device, dark, clock, header, photoURL, before = false }) {
+    this.before = before;
     this.page = page;
     this.device = device;
     this.dark = dark;
@@ -499,6 +502,7 @@ class ChatRow {
 
   endSwipe(vx, now) {
     this.tracking = false;
+    diag('swipe', { title: this.chat.title, x: Math.round(this.offsetModel), vx: Math.round(vx), rig: !!this.depth?.active, glyphs: this.depth?.glyphs?.length || 0 });
     const side = this.offsetModel > 0 ? 'left' : this.offsetModel < 0 ? 'right' : null;
     if (!side) { if (this.list.openRow === this) this.list.openRow = null; return; }
     const node = this.sides[side];
@@ -644,6 +648,7 @@ class ChatRow {
   // ---------------------------------------------------------------- Depth Swipe
 
   depthStart(now) {
+    if (this.list.before) return;
     if (!this.depth) {
       this.depth = new DepthRig({
         title: this.titleText,
@@ -756,7 +761,14 @@ class ChatRow {
     this.vel = this.vel * 0.45 + v * 0.55;
     this.prevX = x;
     if (this.depth && this.depth.active) {
-      const moving = this.depth.update(now, x, this.vel, this.tracking ? x - this.initial : 0);
+      let moving = false;
+      try {
+        moving = this.depth.update(now, x, this.vel, this.tracking ? x - this.initial : 0);
+      } catch (e) {
+        // A broken frame must never stop the list: report it and fall back to the flat row.
+        diag('depth-error', { msg: String(e && e.message), stack: String(e && e.stack).slice(0, 400) });
+        try { this.depth.end(); } catch (_) {}
+      }
       const still = !this.tracking && !this.anim && Math.abs(this.vel) < 1;
       // Settled flat: back to the flat DOM. Settled open with pieces round the rim: it stays.
       if (!moving && still) { if (!this.depth.rolled) this.depth.end(); } else busy = true;

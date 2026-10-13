@@ -51,7 +51,19 @@ export class Stage {
     this.slow.style.opacity = '0';
     stageEl.appendChild(this.slow);
     this.slowState = { to: 1, t0: -1, from: 0 };
+    // The corner label of a demo: "Before · Telegram today" / "After · <design>".
+    this.tag = document.createElement('div');
+    this.tag.className = 'stage-tag';
+    this.tag.style.opacity = '0';
+    stageEl.appendChild(this.tag);
+    this.tagT0 = null;
     this.apply();
+  }
+
+  setTag(html, vt) {
+    this.tag.innerHTML = html || '';
+    this.tag.classList.toggle('before', /before/i.test(html || ''));
+    this.tagT0 = html ? vt : null;
   }
 
   // A caption (null: none). The old one fades out as the new one fades in (0.3 s).
@@ -89,6 +101,7 @@ export class Stage {
       if (c.out != null && vt - c.out >= fade) { c.el.remove(); return false; }
       return true;
     });
+    if (this.tagT0 != null) this.tag.style.opacity = Math.min(1, (vt - this.tagT0) / 0.4).toFixed(3);
     const S = this.slowState;
     const target = S.to < 0.99 ? 1 : 0;
     const u = S.t0 < 0 ? 1 : Math.min(1, (vt - S.t0) / 0.25);

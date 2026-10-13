@@ -1,0 +1,37 @@
+{
+ "back-after": {
+  "duration": 30,
+  "file_id": "BAACAgQAAxkDAAMLas5jdLfxzTTKZS5BRUzjRY3tlsQAArIxAALGmHhStvGpEiuaoVM9BA",
+  "height": 1080,
+  "stamp": "8557394:1791898353",
+  "width": 1080
+ },
+ "gifts-after": {
+  "duration": 31,
+  "file_id": "BAACAgQAAxkDAAMOas5jeskrtBHSq-yKB2Ab5uUtzwsAArUxAALGmHhSMLHG9Ga0h0A9BA",
+  "height": 1080,
+  "stamp": "8088570:1791903330",
+  "width": 1080
+ },
+ "glass-after": {
+  "duration": 52,
+  "file_id": "BAACAgQAAxkDAAMKas5jciqHFouqpReXpiIxdmqc0ToAArExAALGmHhSJn9M2cSoxjk9BA",
+  "height": 1080,
+  "stamp": "10274130:1791900427",
+  "width": 1080
+ },
+ "icons-after": {
+  "duration": 67,
+  "file_id": "BAACAgQAAxkDAAMMas5jduNADgi90nM8vwkFQcHOEogAArMxAALGmHhSMonFNIvvXoE9BA",
+  "height": 1080,
+  "stamp": "12429252:1791902063",
+  "width": 1080
+ },
+ "swipe-after": {
+  "duration": 58,
+  "file_id": "BAACAgQAAxkDAAMNas5jeDEVSATZiZ5hERnwvVMJAioAArQxAALGmHhSTdTUGVQv9t89BA",
+  "height": 1080,
+  "stamp": "10708895:1791894429",
+  "width": 1080
+ }
+}
