@@ -68,8 +68,9 @@ try {
     // so every player (Telegram's included) shows the colours the page rendered.
     ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'mjpeg', '-i', '-',
       '-vf', BT709,
-      '-c:v', 'libx264', '-preset', 'slow', '-crf', '15', '-pix_fmt', 'yuv420p', '-profile:v', 'high', '-movflags', '+faststart',
-      '-threads', '1', out], { stdio: ['pipe', 'inherit', 'inherit'] });
+      // A short look-ahead keeps the encoder small (~100 MB less) next to Chrome on a shared box.
+      '-c:v', 'libx264', '-preset', 'medium', '-rc-lookahead', '15', '-crf', '14', '-pix_fmt', 'yuv420p', '-profile:v', 'high',
+      '-movflags', '+faststart', '-threads', '1', out], { stdio: ['pipe', 'inherit', 'inherit'] });
   }
   const t0 = Date.now();
   for (let f = 0; f < total; f++) {

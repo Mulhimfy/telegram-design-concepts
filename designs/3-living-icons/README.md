@@ -4,7 +4,7 @@
 moving.** The padlock's shackle springs open and slams shut, the bell rings while its clapper swings, the
 battery's charge jolts… then it is the same still icon again.
 
-- Video: `renders/designs/3-icons.mp4` · Try it: <https://t.me/Tgdesignbot?start=icons> (Settings → open any row, come back)
+- Videos: `renders/designs/3-icons-after.mp4` (the design) and `3-icons-before.mp4` (Telegram today) · Try it: <https://t.me/Tgdesignbot?start=icons> (Settings → open any row, come back)
 
 ## Today in Telegram
 Every Settings icon is a static, pre-rendered 30×30 image in its coloured tile (PresentationResourcesSettings

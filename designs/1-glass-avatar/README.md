@@ -1,11 +1,12 @@
 # 1 · Glass Avatar
 
 **Touch your profile photo and it becomes a thin sheet of glass under your finger.** It tilts any way you
-move, turns over past edge-on, spins when flicked, and is a flat photo again a moment after you let go.
+move, turns over past edge-on, spins when flicked — and when you finish turning it, it goes straight back to
+normal: a flat photo again a moment after you let go, so it stays minimal and never gets in the way.
 Choose a **glass colour** and its light runs across the whole profile — and from then on, turning the
 photo throws that light across your name, in the direction it turns.
 
-- Video: `renders/designs/1-glass.mp4` · Try it: <https://t.me/Tgdesignbot?start=glass> (Settings tab)
+- Videos: `renders/designs/1-glass-after.mp4` (the design) and `1-glass-before.mp4` (Telegram today) · Try it: <https://t.me/Tgdesignbot?start=glass> (Settings tab)
 - Full behaviour spec: [concept.md](concept.md)
 
 ## Today in Telegram
@@ -37,8 +38,9 @@ Scrolling, pull-to-expand and the tap behave as today (Telegram's own header for
 ## Submission text
 > **Glass Avatar — your photo turns to glass**
 > Today a drag on a profile photo does nothing. Here it turns the photo into a thin sheet of glass: it lifts
-> under your finger, tilts any way you move, turns over past edge-on and spins when flicked, and is a flat
-> photo again 0.2–0.45 s after you let go. Pick a glass colour (new row, eight colours): its light runs across
+> under your finger, tilts any way you move, turns over past edge-on and spins when flicked — and when you
+> finish turning it, it goes straight back to normal (a flat photo 0.2–0.45 s after you let go), so it stays
+> minimal and never gets in the way. Pick a glass colour (new row, eight colours): its light runs across
 > the whole profile, and turning the photo then sweeps that light across your name in the direction it turns.
 > Built on Telegram's own constants (PremiumCoinComponent gesture, TouchEffect lift, LiquidGlass shadows,
 > HapticFeedback detents, the header's scroll formulas). Code: a drop-in Swift + Metal module and a

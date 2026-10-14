@@ -1,10 +1,10 @@
 # 2 · Back Photo
 
-**Your profile photo gets a back side.** Add a back photo in Settings and your photo turns over by itself to
-show it; anyone who turns your photo over (design 1's gesture) sees it. One photo, two sides: a small,
-personal surprise on the back.
+**Surprise your followers with a hidden photo — shown only when your profile photo is turned over.** Add a
+back photo in Settings and your photo turns over by itself to show it; anyone who turns your photo over
+(design 1's gesture) finds it. One photo, two sides.
 
-- Video: `renders/designs/2-back.mp4` · Try it: <https://t.me/Tgdesignbot?start=back> (Settings → Add Back Photo)
+- Videos: `renders/designs/2-back-after.mp4` (the design) and `2-back-before.mp4` (Telegram today) · Try it: <https://t.me/Tgdesignbot?start=back> (Settings → Add Back Photo)
 
 ## Today in Telegram
 A profile has one current photo (plus the gallery of older ones, `personal_photo` and `fallback_photo`); the
@@ -35,7 +35,8 @@ photo has no reverse side.
 
 ## Submission text
 > **Back Photo — your profile photo gets a back side**
-> Add a back photo in Settings (new row) and your profile photo turns over by itself to show it. Anyone who
+> Surprise your followers with a hidden photo, shown only when your profile photo is turned over. Add a back
+> photo in Settings (new row) and your profile photo turns over by itself to show it. Anyone who
 > turns your photo over sees the back; without one, the back is the same photo. Changing it while the back is
 > showing turns the photo and swaps the side as it passes edge-on, so nothing ever pops. Needs one new profile
 > field (`back_photo`). Code: a Telegram-iOS patch (row, picker, store) on top of the Glass Avatar module, plus

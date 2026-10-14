@@ -1,37 +1,72 @@
 {
  "back-after": {
-  "duration": 30,
-  "file_id": "BAACAgQAAxkDAAMLas5jdLfxzTTKZS5BRUzjRY3tlsQAArIxAALGmHhStvGpEiuaoVM9BA",
+  "duration": 32,
+  "file_id": "BAACAgQAAxkDAAMWas8geU46dP_Y-6LhkmOpwTNVtukAAggeAAJ4RXhSC8plmT6n1Us9BA",
   "height": 1080,
-  "stamp": "8557394:1791898353",
+  "stamp": "8572129:1791956708",
+  "width": 1080
+ },
+ "back-before": {
+  "duration": 12,
+  "file_id": "BAACAgQAAxkDAAMXas8ge5QSKZkn4DY0XXrph5S_0qYAAgkeAAJ4RXhS5wRZhSOINZY9BA",
+  "height": 1080,
+  "stamp": "2929674:1791957030",
   "width": 1080
  },
  "gifts-after": {
   "duration": 31,
-  "file_id": "BAACAgQAAxkDAAMOas5jeskrtBHSq-yKB2Ab5uUtzwsAArUxAALGmHhSMLHG9Ga0h0A9BA",
+  "file_id": "BAACAgQAAxkDAAMcas8ghWEJiLfEna3btG68clGzRscAAg8eAAJ4RXhSJY1xczJanZ49BA",
   "height": 1080,
-  "stamp": "8088570:1791903330",
+  "stamp": "9004046:1791954841",
+  "width": 1080
+ },
+ "gifts-before": {
+  "duration": 28,
+  "file_id": "BAACAgQAAxkDAAMdas8ghz1ievH5R6kCxCUR1ahZnGsAAhAeAAJ4RXhSSAn9eu0EtSs9BA",
+  "height": 1080,
+  "stamp": "5448109:1791955751",
   "width": 1080
  },
  "glass-after": {
   "duration": 52,
-  "file_id": "BAACAgQAAxkDAAMKas5jciqHFouqpReXpiIxdmqc0ToAArExAALGmHhSJn9M2cSoxjk9BA",
+  "file_id": "BAACAgQAAxkDAAMUas8gc-sp77Ul2yH8gcjqNqt4-osAAgYeAAJ4RXhSBdd3z9DgsSA9BA",
   "height": 1080,
-  "stamp": "10274130:1791900427",
+  "stamp": "10103294:1791958660",
+  "width": 1080
+ },
+ "glass-before": {
+  "duration": 16,
+  "file_id": "BAACAgQAAxkDAAMVas8gd7jCEZqdxWejuryXhwK5iNoAAgceAAJ4RXhSDKurUJWlg7U9BA",
+  "height": 1080,
+  "stamp": "3194675:1791959124",
   "width": 1080
  },
  "icons-after": {
-  "duration": 67,
-  "file_id": "BAACAgQAAxkDAAMMas5jduNADgi90nM8vwkFQcHOEogAArMxAALGmHhSMonFNIvvXoE9BA",
+  "duration": 78,
+  "file_id": "BAACAgQAAxkDAAMYas8gfYZefQpqL44sLoK-nTeTWBwAAgoeAAJ4RXhSYA0utk48LtU9BA",
   "height": 1080,
-  "stamp": "12429252:1791902063",
+  "stamp": "20991442:1791920351",
+  "width": 1080
+ },
+ "icons-before": {
+  "duration": 17,
+  "file_id": "BAACAgQAAxkDAAMZas8gf-q0nvWSAAFobc8ch8tO244vAAILHgACeEV4Ui3b82st7Mn6PQQ",
+  "height": 1080,
+  "stamp": "5866063:1791920857",
   "width": 1080
  },
  "swipe-after": {
-  "duration": 58,
-  "file_id": "BAACAgQAAxkDAAMNas5jeDEVSATZiZ5hERnwvVMJAioAArQxAALGmHhSTdTUGVQv9t89BA",
+  "duration": 66,
+  "file_id": "BAACAgQAAxkDAAMaas8ggSYMnsLhbRhlv3T8G29vSb4AAgweAAJ4RXhStKNLkwfWvuY9BA",
   "height": 1080,
-  "stamp": "10708895:1791894429",
+  "stamp": "14181031:1791916354",
+  "width": 1080
+ },
+ "swipe-before": {
+  "duration": 57,
+  "file_id": "BAACAgQAAxkDAAMbas8gg9cnVXnMe5l7LzO6MC_BtKUAAg4eAAJ4RXhS_LbY2TmKhaE9BA",
+  "height": 1080,
+  "stamp": "11753023:1791918244",
   "width": 1080
  }
 }

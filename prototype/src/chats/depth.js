@@ -149,7 +149,7 @@ export class DepthRig {
       const g = document.createElement('span');
       const x = (r.left - box.left) * k;
       const w = r.width * k;
-      g.style.cssText = `position:absolute;left:${x.toFixed(2)}px;top:0;width:${Math.max(1, w).toFixed(2)}px;height:100%;transform-style:preserve-3d;will-change:transform;white-space:pre;transform-origin:50% 55%`;
+      g.style.cssText = `position:absolute;left:${x.toFixed(2)}px;top:0;width:${Math.max(1, w).toFixed(2)}px;height:100%;transform-style:preserve-3d;white-space:pre;transform-origin:50% 55%`;
       for (let j = L.layers; j >= 1; j--) {
         const s = document.createElement('span');
         s.textContent = p;
@@ -186,7 +186,6 @@ export class DepthRig {
     const lines = this.parts.lines || [];
     this.lines = lines.map((el) => ({ el, lean: spring(DepthLook.lines.spring), last: '' }));
     if (lines[0]) lines[0].parentElement.style.perspective = `${DepthLook.perspective}px`;
-    for (const l of this.lines) l.el.style.willChange = 'transform';
   }
 
   buildAvatar() {
@@ -198,7 +197,7 @@ export class DepthRig {
     // The disc: rim slices behind the face, the picture inset in it, a glint on top.
     const disc = document.createElement('div');
     disc.className = 'depth-disc';
-    disc.style.cssText = 'position:absolute;inset:0;transform-style:preserve-3d;will-change:transform;pointer-events:none';
+    disc.style.cssText = 'position:absolute;inset:0;transform-style:preserve-3d;pointer-events:none';
     for (let j = A.layers; j >= 1; j--) {
       const s = document.createElement('div');
       const lit = 0.55 + 0.25 * (1 - j / A.layers);
@@ -223,13 +222,12 @@ export class DepthRig {
     const inner = pic ? pic.cloneNode(true) : document.createElement('div');
     inner.style.position = 'absolute';
     inner.style.inset = '0';
-    inner.style.willChange = 'transform';
     face.appendChild(inner);
     const rim = document.createElement('div');
     rim.style.cssText = 'position:absolute;inset:0;border-radius:50%;box-shadow:inset 0 0 0 0.75px rgba(255,255,255,0.35),inset 0 0 6px rgba(0,0,0,0.25)';
     face.appendChild(rim);
     const glint = document.createElement('div');
-    glint.style.cssText = 'position:absolute;inset:-30%;opacity:0;background:linear-gradient(105deg,rgba(255,255,255,0) 38%,rgba(255,255,255,0.55) 50%,rgba(255,255,255,0) 62%);will-change:transform,opacity';
+    glint.style.cssText = 'position:absolute;inset:-30%;opacity:0;background:linear-gradient(105deg,rgba(255,255,255,0) 38%,rgba(255,255,255,0.55) 50%,rgba(255,255,255,0) 62%)';
     face.appendChild(glint);
     const dim = document.createElement('div');
     dim.style.cssText = 'position:absolute;inset:0;border-radius:50%;background:#000;opacity:0';

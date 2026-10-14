@@ -8,6 +8,7 @@ import { timeline } from './kit.js';
 
 export function giftsDemo(ctx) {
   const { chats, nav, W, stage } = ctx;
+  const before = !!ctx.before;
   const k = timeline();
   const row = (id) => chats.rows.find((r) => r.chat.id === id);
   const page = () => nav.top;
@@ -35,7 +36,8 @@ export function giftsDemo(ctx) {
   });
 
   k.camera(BASE, 0.01);
-  k.caption('<b>Glass Gifts</b> — every gift becomes a pane of glass');
+  k.tag(before ? '<b>Before</b> <span>·</span> Telegram today' : '<b>After</b> <span>·</span> Glass Gifts');
+  k.caption(before ? '<b>Today</b> — the gifts on a profile are flat' : '<b>Glass Gifts</b> — every gift becomes a pane of glass');
   k.wait(1.0);
   // Open a profile; its Gifts are below the info.
   k.tap(() => [200, row('alex').y + 38 - chats.scroller.offset]);
@@ -45,31 +47,36 @@ export function giftsDemo(ctx) {
   k.camera(GRID, 1.1).wait(1.6);
 
   // 1. Touch: the glass leans toward the finger, light runs across it.
-  k.caption('Touch a gift: it leans to your finger, light runs across it');
+  k.caption(before ? 'Touch a gift: nothing moves' : 'Touch a gift: it leans to your finger, light runs across it');
   k.down(gift(1, 0.55, -0.5)).wait(1.1).up().wait(0.7);
   k.down(gift(3, -0.6, 0.55)).wait(1.0).up().wait(0.7);
   k.down(gift(5, 0.5, 0.45)).wait(1.0).up().wait(0.6);
   k.speed(0.3);
-  k.caption('Touch, in slow motion');
+  k.caption(before ? 'In slow motion: still nothing' : 'Touch, in slow motion');
   k.down(gift(4, -0.45, -0.5)).wait(0.9).up().wait(0.7);
   k.speed(1).wait(0.2);
 
-  // 2. Hold and slide: every gift you cross leans after the finger.
-  k.caption('Hold and slide: every gift you cross follows');
-  k.down(gift(0, 0.1, 0.1));
-  k.wait(0.3);
-  k.drag(() => [gift(0, 0.15, 0.12)(), gift(1, 0, 0.2)(), gift(2, 0.2, 0)(), gift(5, 0.3, 0.1)(), gift(4, 0, 0.3)(), gift(3, -0.3, 0.1)(), gift(6, 0.1, 0.2)(), gift(7, 0.3, -0.2)(), gift(4, 0.2, -0.3)()], 3.6, 'inOutSine');
-  k.wait(0.2).up().wait(1.0);
+  // 2. Hold and slide: every gift you cross leans after the finger (today a slide just scrolls).
+  if (!before) {
+    k.caption('Hold and slide: every gift you cross follows');
+    k.down(gift(0, 0.1, 0.1));
+    k.wait(0.3);
+    k.drag(() => [gift(0, 0.15, 0.12)(), gift(1, 0, 0.2)(), gift(2, 0.2, 0)(), gift(5, 0.3, 0.1)(), gift(4, 0, 0.3)(), gift(3, -0.3, 0.1)(), gift(6, 0.1, 0.2)(), gift(7, 0.3, -0.2)(), gift(4, 0.2, -0.3)()], 3.6, 'inOutSine');
+    k.wait(0.2).up().wait(1.0);
+  } else {
+    k.caption('Hold a gift: nothing follows the finger');
+    k.down(gift(1, 0.2, 0.2)).wait(1.6).up().wait(0.8);
+  }
 
   // 3. Tilt the phone: the light moves across all of them.
-  k.caption('Tilt your phone: the light moves across the glass');
+  k.caption(before ? 'Tilt your phone: nothing changes' : 'Tilt your phone: the light moves across the glass');
   k.camera(() => ({ ...GRID(), tilt: [7, -11] }), 1.3).wait(1.4);
   k.camera(() => ({ ...GRID(), tilt: [-6, 11] }), 1.9).wait(2.0);
   k.camera(() => ({ ...GRID(), tilt: [5, 4] }), 1.2).wait(1.25);
   k.camera(() => ({ ...GRID(), tilt: [0, 0] }), 1.0).wait(1.1);
 
   // 4. It is hover-like: a tap keeps opening the gift, as today.
-  k.caption('Like hover: a tap still opens the gift’s info, as today');
+  k.caption(before ? 'A tap opens the gift’s info — that stays as it is' : 'Like hover: a tap still opens the gift’s info, as today');
   k.wait(2.6);
   k.caption(null);
   k.camera(BASE, 1.1).wait(1.4);

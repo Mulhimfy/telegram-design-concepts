@@ -180,7 +180,10 @@ export class Stage {
     const tilt = Math.abs(rx) + Math.abs(ry) > 1e-3
       ? ` translate(${cam.focus[0]}px, ${cam.focus[1]}px) perspective(1600px) rotateX(${rx.toFixed(3)}deg) rotateY(${ry.toFixed(3)}deg) translate(${-cam.focus[0]}px, ${-cam.focus[1]}px)`
       : '';
-    this.deviceEl.style.transform = `translate(${tx}px, ${ty}px) scale(${s})${tilt}`;
+    // The zoom is CSS `zoom`, not a scale transform: the page is laid out at the zoomed size, so text and
+    // 3D layers (Depth Swipe's letters, the photo disc) are drawn sharp instead of an enlarged 1× copy.
+    this.deviceEl.style.zoom = String(s);
+    this.deviceEl.style.transform = `translate(${(tx / s).toFixed(3)}px, ${(ty / s).toFixed(3)}px)${tilt}`;
   }
 
   showTouch(p, visible, pressed) {

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# One self-contained zip per design for the submission: its README (spec + submission text), its demo
-# video, its native code (module + patch) and the web prototype that runs it.
+# One self-contained zip per design for the submission: its README (spec + submission text), its two demo
+# videos (before: Telegram today, after: the design), its native code (module + patch) and the web prototype.
 #   tools/bundle-designs.sh            → dist/<n>-<Name>.zip
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -14,7 +14,9 @@ bundle() {  # n key Name "native paths…"
   local d="$work/$n-$name"
   mkdir -p "$d"
   cp -r "designs/$n-"*/. "$d/"
-  [ -f "renders/designs/$n-$key.mp4" ] && cp "renders/designs/$n-$key.mp4" "$d/$name-demo.mp4"
+  for mode in before after; do
+    [ -f "renders/designs/$n-$key-$mode.mp4" ] && cp "renders/designs/$n-$key-$mode.mp4" "$d/$name-$mode.mp4"
+  done
   mkdir -p "$d/native"
   for p in "$@"; do
     [ -e "$p" ] || { echo "missing $p" >&2; exit 1; }

@@ -78,9 +78,9 @@ curl -sS "$api/setMyCommands" -H 'content-type: application/json' -d '{"commands
 curl -sS "$api/setMyShortDescription" --data-urlencode "short_description=Five Telegram iOS design concepts you can try live: Glass Avatar, Back Photo, Living Icons, Depth Swipe, Glass Gifts." | ok short
 curl -sS "$api/setMyDescription" --data-urlencode "description=Five design concepts for Telegram iOS, running in a replica of the app:
 
-🪟 Glass Avatar — your photo turns to glass under your finger
-🔄 Back Photo — your photo gets a back side
-⚙️ Living Icons — Settings icons come alive
+🪟 Glass Avatar — your photo turns to glass under your finger, then straight back to normal
+🔄 Back Photo — surprise your followers with a hidden photo on its back
+⚙️ Living Icons — open a Settings row, come back: its icon comes alive
 💬 Depth Swipe — chats move in 3D as you swipe
 🎁 Glass Gifts — gifts become panes of glass
 

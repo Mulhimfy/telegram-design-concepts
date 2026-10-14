@@ -6,7 +6,8 @@
 //   everything else        the prototype (static files)
 //
 // Secrets (wrangler pages secret put … --project-name tgdesign): BOT_TOKEN, HOOK_PATH,
-// WEBHOOK_SECRET. Demo videos are served from /videos/<key>.mp4 and sent by URL.
+// WEBHOOK_SECRET. Demo videos are sent by Telegram file id (videos/index.json, tools/bot/upload-videos.py);
+// the mp4s are also served from /videos/ as a fallback link.
 
 const DESIGNS = [
   {
@@ -23,7 +24,7 @@ const DESIGNS = [
   },
   {
     key: 'swipe', emoji: '💬', title: 'Depth Swipe', query: '?tab=chats',
-    how: 'Chats → swipe a chat right or left: the name, message and photo move in 3D; to the left they roll over the screen edge. Swipe all the way for the spin.',
+    how: 'Chats → swipe a chat right or left: the name, message and photo move in 3D. Pulling right, the letters roll back in a wave as you pull; to the left the photo rolls over the screen’s edge and every letter flips over it. Swipe all the way for the spin.',
   },
   {
     key: 'gifts', emoji: '🎁', title: 'Glass Gifts', query: '?tab=chats&open=alex',

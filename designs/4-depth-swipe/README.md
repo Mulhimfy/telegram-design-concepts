@@ -2,10 +2,11 @@
 
 **Swipe a chat and its row comes off the surface in 3D.** The name becomes extruded type whose letters roll
 back in a wave, the message leans, the photo becomes a coin. Swipe to the left and the screen's edge becomes
-the rounded rim of the surface: the photo, then the name letter by letter, roll over it into the depth — and
-roll back out as the row closes.
+the rounded rim of the surface: the photo rolls over it and every letter of the name flips over it, one after
+another — and they flip back out as the row closes.
 
-- Video: `renders/designs/4-swipe.mp4` (every swipe at full speed, then in slow motion)
+- Videos: `renders/designs/4-swipe-after.mp4` (every swipe at full speed, then in slow motion) and
+  `4-swipe-before.mp4` (the same swipes in Telegram today)
 - Try it: <https://t.me/Tgdesignbot?start=swipe> (Chats tab)
 
 ## Today in Telegram
@@ -22,7 +23,8 @@ The iOS 26 swipe actions (round 50 pt buttons, one 0.6 s spring) move the row's 
   hinge 36 pt in): a piece whose flat centre goes d pt past the hinge is d/34 rad round it — it turns away on the
   rim (its thickness and extrusion showing, the light leaving its face), fades between 62° and 90°, and is behind
   the rim after. The disc reaches the rim after ~10 pt of swipe and takes ~55 pt more to go over; each letter the
-  same as it gets there. The message text fades into the rim. Swiped back, everything rolls out of the edge the
+  same as it gets there — and as it rolls over, it **flips over once** about its own axis (done by ~60° round,
+  before it fades), so the letters visibly tumble off the edge one after another, on every left swipe. The message text fades into the rim. Swiped back, everything rolls out of the edge the
   same way.
 - **All the way** (the full-swipe haptic): the letters spin once, reel by reel (0.56 s, 30 ms stagger), and the
   disc flips like a coin.
@@ -46,8 +48,8 @@ The iOS 26 swipe actions (round 50 pt buttons, one 0.6 s spring) move the row's 
 > **Depth Swipe — chats move in 3D as you swipe**
 > Swipe a chat and its row comes off the surface: the name becomes 3D type whose letters roll back in a wave,
 > the message lines lean, the photo becomes a coin with a glint. Swipe left and the screen's edge becomes the
-> rounded rim of the surface — the photo and then the name roll over it letter by letter, and roll back out as
-> the row closes. Swipe all the way and the letters spin, the photo flips. It follows the finger's speed, runs
+> rounded rim of the surface — the photo rolls over it and the letters flip over it one by one, and flip back
+> out as the row closes. Swipe all the way and the letters spin, the photo flips. It follows the finger's speed, runs
 > on every move of the row, and leaves the flat row untouched at rest. Built on Telegram's own iOS 26 swipe
 > actions (ported exactly). Code: a Telegram-iOS module and a ChatListItemNode patch, plus the web prototype.
 > Try it: t.me/Tgdesignbot?start=swipe

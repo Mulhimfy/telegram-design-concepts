@@ -5,7 +5,7 @@ toward your finger while a burst of light runs across the glass; hold and slide,
 follows your finger; tilt the phone and the light moves across all of them. It works like hover: a tap still
 opens the gift's info sheet, exactly as Telegram does today.
 
-- Video: `renders/designs/5-gifts.mp4` · Try it: <https://t.me/Tgdesignbot?start=gifts> (a profile's Gifts tab)
+- Videos: `renders/designs/5-gifts-after.mp4` (the design) and `5-gifts-before.mp4` (Telegram today) · Try it: <https://t.me/Tgdesignbot?start=gifts> (a profile's Gifts tab)
 
 ## Today in Telegram
 Gift tiles are flat: `style: .glass` only sets the corner radius (GiftItemComponent:466-480); the only motion

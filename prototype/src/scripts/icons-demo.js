@@ -24,11 +24,18 @@ export function livingIconsDemo(ctx) {
     k.gesture({ from: [250, d > 0 ? 700 : 260], path: [[250, (d > 0 ? 700 : 260) - d]], hold: 0.08, duration, ease: 'inOut', after: 0.05 });
     k.wait(0.25);
   };
-  // Open its page, come back: the icon plays as the page leaves.
-  const visit = (title, { stay = 0.85, slow = null, after = 1.45 } = {}) => {
+  // The page that opens, from its title down (closer in, a short page is mostly empty black).
+  const PAGE = { zoom: 1.3, focus: [W / 2, 0], anchor: [540, 90] };
+  // Open its page, come back: the icon plays as the page leaves. With `close`, the camera pulls back to the
+  // page while it is open and zooms into the icon as you come back.
+  const visit = (title, { stay = 0.85, slow = null, after = 1.45, close = false } = {}) => {
+    let target = null;
+    if (close) k.call(() => { target = closeUp(title)(); });   // where the icon is, at rest
     k.tap(rowAt(title));
+    if (close) k.camera(PAGE, 0.6);
     k.wait(0.6 + stay);
     k.tap(() => ctx.centerOf(nav.top.backButton));
+    if (close) k.camera(() => target, 0.6);
     if (slow) {
       k.wait(0.14);
       k.speed(slow, 0.2);
@@ -64,18 +71,18 @@ export function livingIconsDemo(ctx) {
   k.wait(1.5);
 
   // 2. Close-ups, slow motion — each one after tapping its row and coming back.
-  k.camera(closeUp('Privacy and Security'), 0.9).wait(0.9);
+  k.camera(column('Privacy and Security', 2.0), 0.9).wait(0.9);
   k.caption('Privacy → back: the shackle springs open and slams shut');
-  visit('Privacy and Security', { slow: 0.25, after: 1.35 });
-  k.camera(closeUp('Notifications and Sounds'), 0.9).wait(0.9);
+  visit('Privacy and Security', { slow: 0.25, after: 1.35, close: true });
+  k.camera(column('Notifications and Sounds', 2.0), 0.9).wait(0.9);
   k.caption('Notifications → back: the bell rings, its clapper swings');
-  visit('Notifications and Sounds', { slow: 0.3, after: 1.3 });
-  k.camera(closeUp('Power Saving'), 0.9).wait(0.9);
+  visit('Notifications and Sounds', { slow: 0.3, after: 1.3, close: true });
+  k.camera(column('Power Saving', 2.0), 0.9).wait(0.9);
   k.caption('Power Saving → back: the battery’s charge jolts');
-  visit('Power Saving', { slow: 0.3, after: 1.1 });
-  k.camera(closeUp('Data and Storage'), 0.7).wait(0.7);
+  visit('Power Saving', { slow: 0.3, after: 1.1, close: true });
+  k.camera(column('Data and Storage', 2.0), 0.7).wait(0.7);
   k.caption('Data and Storage → back: the disks hop one by one');
-  visit('Data and Storage', { slow: 0.3, after: 1.1 });
+  visit('Data and Storage', { slow: 0.3, after: 1.1, close: true });
 
   // 3. Whole sections, every part moving.
   k.camera(column('Recent Calls', 1.45), 1.0).wait(1.0);
@@ -88,12 +95,12 @@ export function livingIconsDemo(ctx) {
   // 4. Further down: Premium, Stars, Business, Gift, help.
   k.caption(null);
   scrollBy(335);
-  k.camera(closeUp('Telegram Premium'), 0.9).wait(0.9);
+  k.camera(column('Telegram Premium', 2.0), 0.9).wait(0.9);
   k.caption('Telegram Premium → back: the star’s arms fly out as it spins');
-  visit('Telegram Premium', { slow: 0.3, after: 1.2 });
-  k.camera(closeUp('Telegram Business'), 0.7).wait(0.7);
+  visit('Telegram Premium', { slow: 0.3, after: 1.2, close: true });
+  k.camera(column('Telegram Business', 2.0), 0.7).wait(0.7);
   k.caption('Telegram Business → back: the shop’s awning pops open');
-  visit('Telegram Business', { slow: 0.3, after: 1.05 });
+  visit('Telegram Business', { slow: 0.3, after: 1.05, close: true });
   k.camera(column('Send a Gift', 1.3), 1.0).wait(1.0);
   k.caption('…every one of them (shown in a row here)');
   wave(['Telegram Premium', 'My Stars', 'Telegram Business', 'Send a Gift', 'Ask a Question', 'Telegram FAQ', 'Telegram Features'], 0.24, 1.3);
@@ -108,12 +115,12 @@ export function livingIconsDemo(ctx) {
   wave(['Change Emoji Status', 'Change Profile Color', 'Change Profile Photo', 'My Profile', 'Money'], 0.24, 1.3);
   k.caption(null);
   scrollBy(150, 0.8);
-  k.camera(closeUp('My Profile'), 0.9).wait(0.9);
+  k.camera(column('My Profile', 2.0), 0.9).wait(0.9);
   k.caption('My Profile → back: the person ducks and pops up');
-  visit('My Profile', { slow: 0.3, after: 1.1 });
-  k.camera(closeUp('Proxy'), 0.7).wait(0.7);
+  visit('My Profile', { slow: 0.3, after: 1.1, close: true });
+  k.camera(column('Proxy', 2.0), 0.7).wait(0.7);
   k.caption('Proxy → back: the arrows run through the shield');
-  visit('Proxy', { slow: 0.3, after: 1.1 });
+  visit('Proxy', { slow: 0.3, after: 1.1, close: true });
   k.caption(null);
   k.camera(BASE, 1.0).wait(1.3);
   return k.done();
@@ -133,10 +140,16 @@ function livingIconsBefore(ctx) {
     k.gesture({ from: [250, d > 0 ? 700 : 260], path: [[250, (d > 0 ? 700 : 260) - d]], hold: 0.08, duration, ease: 'inOut', after: 0.05 });
     k.wait(0.25);
   };
-  const visit = (title, after = 1.5) => {
+  const PAGE = { zoom: 1.3, focus: [W / 2, 0], anchor: [540, 90] };
+  // With `close`: back to the page while it is open, into the icon on the way back (as in the after video).
+  const visit = (title, after = 1.5, close = false) => {
+    let target = null;
+    if (close) k.call(() => { target = closeUp(title)(); });
     k.tap(rowAt(title));
+    if (close) k.camera(PAGE, 0.6);
     k.wait(1.45);
     k.tap(() => ctx.centerOf(nav.top.backButton));
+    if (close) k.camera(() => target, 0.6);
     k.wait(after);
   };
   k.camera(BASE, 0.01);
@@ -149,12 +162,12 @@ function livingIconsBefore(ctx) {
   visit('Privacy and Security', 0.3);
   k.caption('…come back: the icon stays still');
   k.wait(1.6);
-  k.camera(closeUp('Notifications and Sounds'), 0.9).wait(0.9);
+  k.camera(column('Notifications and Sounds', 2.0), 0.9).wait(0.9);
   k.caption('Notifications → back: nothing moves');
-  visit('Notifications and Sounds');
-  k.camera(closeUp('Power Saving'), 0.9).wait(0.9);
+  visit('Notifications and Sounds', 1.8, true);
+  k.camera(column('Power Saving', 2.0), 0.9).wait(0.9);
   k.caption('Power Saving → back: nothing moves');
-  visit('Power Saving');
+  visit('Power Saving', 1.8, true);
   k.caption(null);
   k.camera(BASE, 1.0).wait(1.3);
   return k.done();
