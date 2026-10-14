@@ -32,7 +32,8 @@ const DESIGNS = [
   },
 ];
 
-const INTRO = '<b>Telegram design concepts</b>\nFive ideas for Telegram iOS, running in a replica of the app. Tap one to try it; ▶️ sends its demo: Telegram today (before), then the design (after).';
+const INTRO = '<b>Telegram design concepts</b>\nFive ideas for Telegram iOS, running in a replica of the app. Each one below comes as two videos: Telegram today (before), then the design (after). Tap <b>Try</b> under it to test it yourself.';
+const MENU = '<b>Telegram design concepts</b>\nFive ideas for Telegram iOS, running in a replica of the app. Tap one to try it; /start shows each one before and after.';
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -40,17 +41,15 @@ function appUrl(origin, d) {
   return `${origin}/${d.query}`;
 }
 
-// Inline keyboard: one row per design. Web App buttons only work in private chats; elsewhere
-// the designs open in the browser.
-function keyboard(origin, designs, { privateChat, videos }) {
-  return {
-    inline_keyboard: designs.map((d) => {
-      const open = privateChat
-        ? { text: `${d.emoji} ${d.title}`, web_app: { url: appUrl(origin, d) } }
-        : { text: `${d.emoji} ${d.title}`, url: appUrl(origin, d) };
-      return videos && videos[d.key] ? [open, { text: '▶️ Before · After', callback_data: `video:${d.key}` }] : [open];
-    }),
-  };
+// A design's open button. Web App buttons only work in private chats; elsewhere the designs open in
+// the browser.
+function openButton(origin, d, privateChat, text) {
+  return privateChat ? { text, web_app: { url: appUrl(origin, d) } } : { text, url: appUrl(origin, d) };
+}
+
+// Inline keyboard without videos: one row per design.
+function keyboard(origin, designs, privateChat) {
+  return { inline_keyboard: designs.map((d) => [openButton(origin, d, privateChat, `${d.emoji} ${d.title}`)]) };
 }
 
 function designText(list) {
@@ -58,12 +57,18 @@ function designText(list) {
 }
 
 async function api(env, method, body) {
-  const r = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/${method}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  return r.json().catch(() => ({ ok: false }));
+  for (let attempt = 0; ; attempt++) {
+    const r = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/${method}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const json = await r.json().catch(() => ({ ok: false }));
+    // /start sends eleven messages in a row; if Telegram asks to slow down, wait and send again.
+    const wait = json.parameters && json.parameters.retry_after;
+    if (json.error_code !== 429 || !wait || wait > 10 || attempt >= 2) return json;
+    await new Promise((resolve) => setTimeout(resolve, wait * 1000));
+  }
 }
 
 async function hasVideos(env, origin) {
@@ -77,42 +82,52 @@ async function hasVideos(env, origin) {
   }
 }
 
+// /start: the intro, then every design as its two videos (before, then after with its Try button).
+// Without videos (none in the deploy, or any other text): one message with the descriptions and a button per design.
 async function sendDesigns(env, origin, chat, designs, videos) {
-  const privateChat = chat.type === 'private';
-  const text = designs.length === 1 ? designText(designs) : `${INTRO}\n\n${designText(designs)}`;
-  await api(env, 'sendMessage', {
-    chat_id: chat.id,
-    text,
-    parse_mode: 'HTML',
-    link_preview_options: { is_disabled: true },
-    reply_markup: keyboard(origin, designs, { privateChat, videos: !!videos }),
-  });
-}
-
-// The design's videos, by Telegram file id (tools/bot/upload-videos.py): before (Telegram today), then after.
-async function sendVideo(env, origin, chat, d, videos) {
-  const pair = videos && videos[d.key];
-  if (!pair) {
-    await api(env, 'sendMessage', { chat_id: chat.id, text: 'The demo video is on its way — try the design meanwhile.' });
+  if (!videos) {
+    const text = designs.length === 1 ? designText(designs) : `${MENU}\n\n${designText(designs)}`;
+    await api(env, 'sendMessage', {
+      chat_id: chat.id,
+      text,
+      parse_mode: 'HTML',
+      link_preview_options: { is_disabled: true },
+      reply_markup: keyboard(origin, designs, chat.type === 'private'),
+    });
     return;
   }
-  const button = { inline_keyboard: [[chat.type === 'private'
-    ? { text: `Try ${d.title}`, web_app: { url: appUrl(origin, d) } }
-    : { text: `Try ${d.title}`, url: appUrl(origin, d) }]] };
-  for (const [which, label] of [['before', 'Before — Telegram today'], ['after', `After — ${d.title}`]]) {
+  if (designs.length > 1) await api(env, 'sendMessage', { chat_id: chat.id, text: INTRO, parse_mode: 'HTML' });
+  for (const d of designs) await sendVideo(env, origin, chat, d, videos);
+}
+
+// The design's videos, by Telegram file id (tools/bot/upload-videos.py): before (Telegram today), then
+// after, captioned with how to try it and carrying the Try button.
+async function sendVideo(env, origin, chat, d, videos) {
+  const pair = (videos && videos[d.key]) || {};
+  const button = { inline_keyboard: [[openButton(origin, d, chat.type === 'private', `${d.emoji} Try ${d.title}`)]] };
+  const captions = {
+    before: `${d.emoji} <b>${esc(d.title)} — Before</b>\nTelegram today`,
+    after: `${d.emoji} <b>${esc(d.title)} — After</b>\n${d.how}`,
+  };
+  for (const which of ['before', 'after']) {
     const v = pair[which];
-    if (!v) continue;
-    const r = await api(env, 'sendVideo', {
+    const extra = which === 'after' ? { reply_markup: button } : {};
+    const r = v ? await api(env, 'sendVideo', {
       chat_id: chat.id,
       video: v.file_id,
       width: v.width, height: v.height, duration: v.duration,
       supports_streaming: true,
-      caption: `${d.emoji} <b>${esc(label)}</b>`,
+      caption: captions[which],
       parse_mode: 'HTML',
-      ...(which === 'after' ? { reply_markup: button } : {}),
-    });
-    if (!r.ok && v.file) {
-      await api(env, 'sendMessage', { chat_id: chat.id, text: `${label}: ${origin}/videos/${v.file}` });
+      ...extra,
+    }) : { ok: false };
+    if (r.ok) continue;
+    // The video couldn't be sent: its link instead (and the after text keeps the Try button).
+    const link = v && v.file ? `\n${origin}/videos/${v.file}` : '';
+    if (which === 'after' || link) {
+      await api(env, 'sendMessage', {
+        chat_id: chat.id, text: captions[which] + link, parse_mode: 'HTML', link_preview_options: { is_disabled: true }, ...extra,
+      });
     }
   }
 }
@@ -124,13 +139,11 @@ async function onUpdate(env, origin, u) {
     const [cmd = '', arg = ''] = (m.text || '').trim().split(/\s+/, 2);
     const command = cmd.replace(/@\w+$/, '').toLowerCase();
     if (m.chat.type !== 'private' && !command.startsWith('/')) return;   // groups: commands only
-    if (command === '/videos') {
-      for (const d of DESIGNS) await sendVideo(env, origin, m.chat, d, videos);
-      return;
-    }
-    // /start, /start <design> (t.me/Tgdesignbot?start=swipe), /<design>, or anything else.
+    // /start, /videos: every design's videos; /start <design> (t.me/Tgdesignbot?start=swipe), /<design>: that
+    // one's; anything else: the menu.
     const one = DESIGNS.find((d) => d.key === arg.toLowerCase() || `/${d.key}` === command);
-    await sendDesigns(env, origin, m.chat, one ? [one] : DESIGNS, videos);
+    const full = one || command === '/start' || command === '/videos';
+    await sendDesigns(env, origin, m.chat, one ? [one] : DESIGNS, full ? videos : null);
     return;
   }
   if (u.callback_query) {
