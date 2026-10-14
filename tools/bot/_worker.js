@@ -24,15 +24,15 @@ const DESIGNS = [
   },
   {
     key: 'swipe', emoji: '💬', title: 'Depth Swipe', query: '?tab=chats',
-    how: 'Chats → swipe a chat right or left: the name, message and photo move in 3D. Pulling right, the letters roll back in a wave as you pull; to the left the photo rolls over the screen’s edge and every letter flips over it. Swipe all the way for the spin.',
+    how: 'Chats → swipe a chat right or left: the name, message and photo move in 3D. Pulling right, the letters roll back in a wave as you pull; swipe to the left and the photo rolls over the screen’s edge and every letter flips over it.',
   },
   {
     key: 'gifts', emoji: '🎁', title: 'Glass Gifts', query: '?tab=chats&open=alex',
-    how: 'A profile’s Gifts → touch a gift: the glass leans and lights up. Hold and slide across the gifts, tilt your phone. (A tap still opens the gift’s info, as today.)',
+    how: 'A profile’s Gifts → touch a gift: the glass leans and lights up. Hold and slide across the gifts, tilt your phone left and right.',
   },
 ];
 
-const INTRO = '<b>Telegram design concepts</b>\nFive ideas for Telegram iOS, running in a replica of the app. Tap a design to try it; ▶️ <b>Before</b> sends its video in Telegram today, ▶️ <b>After</b> the design.';
+const INTRO = '<b>Telegram design concepts</b>\nFive ideas for Telegram iOS, running in a replica of the app. Tap a design to try it; ▶️ <b>Before</b> sends its video in Telegram today, ▶️ <b>After</b> sends the new video design';
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
