@@ -14,9 +14,9 @@ components, as a patch against Telegram-iOS `f1dd7a2`). Every number is traced t
 
 ## Try them
 
-Open **[@Tgdesignbot](https://t.me/Tgdesignbot)** in Telegram and press Start: each design comes as two videos,
-Telegram today (before), then the design (after), and the Try button under the after video opens it as a Mini App
-(Telegram's own haptics, your theme). The menu button opens the whole app.
+Open **[@Tgdesignbot](https://t.me/Tgdesignbot)** in Telegram and press Start: one row per design, its button opens it as
+a Mini App (Telegram's own haptics, your theme), ▶️ Before sends its video in Telegram today, ▶️ After the design.
+The menu button opens the whole app.
 The bot and the app are served by Cloudflare Pages (`tools/bot/`), so they keep working with no server of ours.
 On a computer: <https://tgdesign-601.pages.dev/> (`?tab=chats` opens the chat list, `?tab=chats&open=alex` a profile with gifts).
 

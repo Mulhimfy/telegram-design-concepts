@@ -24,7 +24,7 @@ export function backPhotoDemo(ctx) {
   k.caption('<b>Back Photo</b> — your profile photo gets a back side');
   k.wait(0.7);
   k.camera(CLOSE, 1.0).wait(1.1);
-  k.caption('Today the back is the same photo');
+  k.caption('Today there is no back photo');
   turn(-1);
   k.wait(1.2);
 

@@ -18,8 +18,8 @@ submission text. Videos: `renders/designs/<n>-<key>-before.mp4` (Telegram today)
 
 ## Try them
 
-- **In Telegram: [@Tgdesignbot](https://t.me/Tgdesignbot)** — Start sends each design's two videos (before, then after);
-  the Try button under the after video opens it as a Mini App (Telegram's haptics and colours). Direct links:
+- **In Telegram: [@Tgdesignbot](https://t.me/Tgdesignbot)** — Start shows one row per design: its button opens it as a Mini App
+  (Telegram's haptics and colours), ▶️ Before and ▶️ After send its two videos. Direct links:
   `t.me/Tgdesignbot?start=glass|back|icons|swipe|gifts`.
   The bot and the app are on Cloudflare Pages (`tools/bot/`: the static prototype + a `_worker.js` webhook), so
   nothing depends on a server of ours. Redeploy with `tools/bot/deploy.sh`.
